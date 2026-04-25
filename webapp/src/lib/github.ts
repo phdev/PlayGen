@@ -15,6 +15,8 @@ export interface DispatchOptions {
   premise: string;
   modes: string[];
   conceptPrompt?: string;
+  genre?: string;
+  mechanics?: string;
 }
 
 export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
@@ -30,6 +32,8 @@ export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
       premise: opts.premise,
       modes: opts.modes.join(','),
       ...(opts.conceptPrompt ? { conceptPrompt: opts.conceptPrompt } : {}),
+      ...(opts.genre ? { genre: opts.genre } : {}),
+      ...(opts.mechanics ? { mechanics: opts.mechanics } : {}),
     }),
   });
   if (!res.ok) {
@@ -49,9 +53,13 @@ export interface ConceptResult {
   imageUrl: string;
   prompt: string;
   model: string;
+  analysis?: { genre: string; mechanics: string };
 }
 
-export async function generateConcept(prompt: string): Promise<ConceptResult> {
+export async function generateConcept(
+  prompt: string,
+  onAnalysis?: (analysis: { genre: string; mechanics: string }) => void,
+): Promise<ConceptResult> {
   if (!DISPATCH_BASE) {
     throw new Error(
       'Concept generation is not configured (VITE_DISPATCH_URL is unset).',
@@ -88,6 +96,8 @@ export async function generateConcept(prompt: string): Promise<ConceptResult> {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let pendingAnalysis: { genre: string; mechanics: string } | undefined;
+  let resolved: ConceptResult | undefined;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -106,19 +116,33 @@ export async function generateConcept(prompt: string): Promise<ConceptResult> {
           (event.data && (event.data.detail as string)) ?? 'unknown error';
         throw new Error(detail);
       }
+      if (event.event === 'analysis' && event.data) {
+        const genre =
+          typeof event.data.genre === 'string' ? event.data.genre : '';
+        const mechanics =
+          typeof event.data.mechanics === 'string'
+            ? event.data.mechanics
+            : '';
+        pendingAnalysis = { genre, mechanics };
+        if (resolved) resolved.analysis = pendingAnalysis;
+        onAnalysis?.(pendingAnalysis);
+        continue;
+      }
       if (event.event === 'image') {
         const b64 = (event.data?.b64_json as string) ?? '';
         const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
         const blob = new Blob([bytes], { type: 'image/png' });
-        return {
+        resolved = {
           imageUrl: URL.createObjectURL(blob),
           prompt: (event.data?.prompt as string) ?? prompt,
           model: (event.data?.model as string) ?? 'gpt-image-2',
+          analysis: pendingAnalysis,
         };
       }
     }
   }
 
+  if (resolved) return resolved;
   throw new Error('concept stream ended without an image event');
 }
 

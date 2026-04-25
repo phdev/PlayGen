@@ -7,10 +7,14 @@ function parseArgs(argv: string[]): {
   premise: string;
   modes?: InputMode[];
   conceptPrompt?: string;
+  genre?: string;
+  mechanics?: string;
 } {
   const args = argv.slice(2);
   let modes: InputMode[] | undefined;
   let conceptPrompt: string | undefined;
+  let genre: string | undefined;
+  let mechanics: string | undefined;
   const premiseParts: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -22,6 +26,14 @@ function parseArgs(argv: string[]): {
       const next = args[++i];
       if (!next) throw new Error('--concept-prompt requires a value');
       conceptPrompt = next;
+    } else if (a === '--genre') {
+      const next = args[++i];
+      if (!next) throw new Error('--genre requires a value');
+      genre = next;
+    } else if (a === '--mechanics') {
+      const next = args[++i];
+      if (!next) throw new Error('--mechanics requires a value');
+      mechanics = next;
     } else if (a === '--help' || a === '-h') {
       printUsageAndExit(0);
     } else {
@@ -30,7 +42,7 @@ function parseArgs(argv: string[]): {
   }
   const premise = premiseParts.join(' ').trim();
   if (!premise) printUsageAndExit(1);
-  return { premise, modes, conceptPrompt };
+  return { premise, modes, conceptPrompt, genre, mechanics };
 }
 
 function printUsageAndExit(code: number): never {
@@ -43,14 +55,27 @@ function printUsageAndExit(code: number): never {
   process.exit(code);
 }
 
-const { premise, modes, conceptPrompt } = parseArgs(process.argv);
+const { premise, modes, conceptPrompt, genre, mechanics } = parseArgs(
+  process.argv,
+);
 const slug = newSlug(premise);
 
 if (process.env.GITHUB_OUTPUT) {
   await appendFile(process.env.GITHUB_OUTPUT, `slug=${slug}\n`);
 }
 
-runOrchestrator({ premise, slug, inputModes: modes, conceptPrompt }).then(
+const designIntent =
+  genre || mechanics
+    ? { genre: genre ?? '', mechanics: mechanics ?? '' }
+    : undefined;
+
+runOrchestrator({
+  premise,
+  slug,
+  inputModes: modes,
+  conceptPrompt,
+  designIntent,
+}).then(
   async (manifest) => {
     process.stdout.write(
       `\nDone: ${manifest.slug} (status=${manifest.status})\n` +

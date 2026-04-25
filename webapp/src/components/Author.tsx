@@ -27,6 +27,8 @@ export function Author() {
   const [conceptUrl, setConceptUrl] = useState<string | null>(null);
   const [conceptBusy, setConceptBusy] = useState(false);
   const [conceptError, setConceptError] = useState<string | null>(null);
+  const [genre, setGenre] = useState('');
+  const [mechanics, setMechanics] = useState('');
   const [approved, setApproved] = useState(false);
 
   const [cloudBusy, setCloudBusy] = useState(false);
@@ -124,12 +126,22 @@ export function Author() {
     setConceptBusy(true);
     setConceptError(null);
     try {
-      const result = await generateConcept(promptToUse);
+      const result = await generateConcept(promptToUse, (analysis) => {
+        if (analysis.genre && !genre.trim()) setGenre(analysis.genre);
+        if (analysis.mechanics && !mechanics.trim())
+          setMechanics(analysis.mechanics);
+      });
       setConceptUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return result.imageUrl;
       });
       if (result.prompt) setConceptPrompt(result.prompt);
+      if (result.analysis) {
+        if (result.analysis.genre && !genre.trim())
+          setGenre(result.analysis.genre);
+        if (result.analysis.mechanics && !mechanics.trim())
+          setMechanics(result.analysis.mechanics);
+      }
     } catch (err: unknown) {
       setConceptError(
         err instanceof Error ? err.message : String(err),
@@ -158,7 +170,14 @@ export function Author() {
   }, []);
 
   async function approveAndDispatch(): Promise<void> {
-    if (!premise.trim() || !conceptPrompt.trim()) return;
+    if (
+      !premise.trim() ||
+      !conceptPrompt.trim() ||
+      !genre.trim() ||
+      !mechanics.trim()
+    ) {
+      return;
+    }
     setCloudBusy(true);
     setCloudStatus('Dispatching workflow…');
     setReadySlice(null);
@@ -167,6 +186,8 @@ export function Author() {
         premise: premise.trim(),
         modes: Array.from(modes),
         conceptPrompt: conceptPrompt.trim(),
+        genre: genre.trim(),
+        mechanics: mechanics.trim(),
       });
       setApproved(true);
       setCloudStatus(
@@ -307,10 +328,41 @@ export function Author() {
 
       {cloudReady && conceptSrc && (
         <div className="run-card">
-          <h2>2. Approve & generate slice</h2>
+          <h2>2. Genre & mechanics</h2>
           <p className="muted small">
-            Concept becomes the input to the planner, asset-gen (Meshy),
-            scene-assembly, and playtest subagents.
+            The concept image is art-direction. Pin down the genre and core
+            mechanics so the planner subagent builds a slice that actually
+            plays the way you want.
+          </p>
+          <label className="field">
+            <span>Genre</span>
+            <input
+              type="text"
+              value={genre}
+              onChange={(e) => setGenre(e.target.value)}
+              placeholder="e.g. real-time strategy, twin-stick shooter, sim, tower defense"
+              disabled={approved}
+            />
+          </label>
+          <label className="field">
+            <span>Core mechanics</span>
+            <textarea
+              value={mechanics}
+              onChange={(e) => setMechanics(e.target.value)}
+              placeholder="e.g. rocket assembly, fuel/delta-v management, orbital-mechanics flight, colony resource trees, mission contracts"
+              rows={3}
+              disabled={approved}
+            />
+          </label>
+        </div>
+      )}
+
+      {cloudReady && conceptSrc && (
+        <div className="run-card">
+          <h2>3. Approve & generate slice</h2>
+          <p className="muted small">
+            Concept + genre + mechanics become the inputs to the planner,
+            asset-gen (Meshy), scene-assembly, and playtest subagents.
           </p>
           <div className="cloud-actions">
             <button
@@ -320,7 +372,9 @@ export function Author() {
                 cloudBusy ||
                 approved ||
                 !premise.trim() ||
-                !conceptPrompt.trim()
+                !conceptPrompt.trim() ||
+                !genre.trim() ||
+                !mechanics.trim()
               }
             >
               {cloudBusy

@@ -13,12 +13,18 @@ export type ManifestStatus =
 
 export type InputMode = 'keyboard' | 'touch' | 'gamepad';
 
+export interface DesignIntent {
+  genre: string;
+  mechanics: string;
+}
+
 export interface Manifest {
   slug: string;
   createdAt: string;
   updatedAt: string;
   status: ManifestStatus;
   premise: string;
+  designIntent?: DesignIntent;
   concept?: ConceptArtifact;
   plan?: VerticalSlicePlan;
   assets: AssetRecord[];

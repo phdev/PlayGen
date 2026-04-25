@@ -1,6 +1,7 @@
 interface Env {
   GH_DISPATCH_PAT: string;
   OPENAI_API_KEY: string;
+  ANTHROPIC_API_KEY: string;
   ALLOWED_ORIGINS: string;
   GITHUB_REPO: string;
   GITHUB_WORKFLOW: string;
@@ -8,6 +9,9 @@ interface Env {
 
 const GITHUB_API = 'https://api.github.com';
 const OPENAI_IMAGES_URL = 'https://api.openai.com/v1/images/generations';
+const ANTHROPIC_MESSAGES_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_VERSION = '2023-06-01';
+const ANALYSIS_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_PREMISE_LEN = 500;
 const MAX_CONCEPT_PROMPT_LEN = 2000;
 
@@ -61,6 +65,8 @@ async function dispatch(
     premise?: unknown;
     modes?: unknown;
     conceptPrompt?: unknown;
+    genre?: unknown;
+    mechanics?: unknown;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -76,6 +82,12 @@ async function dispatch(
       : 'keyboard,touch,gamepad';
   const conceptPrompt =
     typeof body.conceptPrompt === 'string' ? body.conceptPrompt.trim() : '';
+  const genre =
+    typeof body.genre === 'string' ? body.genre.trim().slice(0, 200) : '';
+  const mechanics =
+    typeof body.mechanics === 'string'
+      ? body.mechanics.trim().slice(0, 1000)
+      : '';
 
   if (!premise) {
     return jsonResponse(400, { error: 'premise required' }, cors);
@@ -97,6 +109,8 @@ async function dispatch(
 
   const inputs: Record<string, string> = { premise, modes: modesRaw };
   if (conceptPrompt) inputs.concept_prompt = conceptPrompt;
+  if (genre) inputs.genre = genre;
+  if (mechanics) inputs.mechanics = mechanics;
 
   const res = await fetch(
     `${GITHUB_API}/repos/${env.GITHUB_REPO}/actions/workflows/${env.GITHUB_WORKFLOW}/dispatches`,
@@ -182,7 +196,7 @@ async function concept(
 
       enqueueSafe(sseFrame('start', { prompt, model: 'gpt-image-2' }));
 
-      (async (): Promise<void> => {
+      const imageJob = (async (): Promise<void> => {
         try {
           const res = await fetch(OPENAI_IMAGES_URL, {
             method: 'POST',
@@ -202,10 +216,7 @@ async function concept(
           if (!res.ok) {
             const text = await res.text();
             enqueueSafe(
-              sseFrame('error', {
-                status: res.status,
-                detail: text,
-              }),
+              sseFrame('error', { status: res.status, detail: text }),
             );
             return;
           }
@@ -232,11 +243,23 @@ async function concept(
               detail: err instanceof Error ? err.message : String(err),
             }),
           );
-        } finally {
-          clearInterval(ticker);
-          closeOnce();
         }
       })();
+
+      const analysisJob = (async (): Promise<void> => {
+        if (!env.ANTHROPIC_API_KEY) return;
+        try {
+          const analysis = await analyzeIntent(prompt, env.ANTHROPIC_API_KEY);
+          if (analysis) enqueueSafe(sseFrame('analysis', analysis));
+        } catch {
+          // analysis is optional — don't fail the whole stream
+        }
+      })();
+
+      Promise.all([imageJob, analysisJob]).finally(() => {
+        clearInterval(ticker);
+        closeOnce();
+      });
     },
   });
 
@@ -306,4 +329,49 @@ function jsonResponse(
     status,
     headers: { 'content-type': 'application/json', ...extraHeaders },
   });
+}
+
+async function analyzeIntent(
+  prompt: string,
+  apiKey: string,
+): Promise<{ genre: string; mechanics: string } | null> {
+  const res = await fetch(ANTHROPIC_MESSAGES_URL, {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': ANTHROPIC_VERSION,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: ANALYSIS_MODEL,
+      max_tokens: 300,
+      system:
+        'Extract the intended video game genre and core mechanics from the user prompt. Respond with ONLY a JSON object on a single line, no commentary, no code fences: {"genre":"<one short phrase>","mechanics":"<comma-separated 3-6 mechanic names>"}. If the prompt explicitly references another game (e.g. "mechanics from Kerbal Space Program"), expand it to that game\'s actual mechanics.',
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as {
+    content?: Array<{ type?: string; text?: string }>;
+  };
+  const text = (json.content ?? [])
+    .filter((p) => p.type === 'text')
+    .map((p) => p.text ?? '')
+    .join('');
+  const match = text.match(/\{[^]*?\}/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[0]) as {
+      genre?: unknown;
+      mechanics?: unknown;
+    };
+    const genre =
+      typeof parsed.genre === 'string' ? parsed.genre.trim() : '';
+    const mechanics =
+      typeof parsed.mechanics === 'string' ? parsed.mechanics.trim() : '';
+    if (!genre && !mechanics) return null;
+    return { genre, mechanics };
+  } catch {
+    return null;
+  }
 }

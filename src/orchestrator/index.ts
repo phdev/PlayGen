@@ -5,7 +5,11 @@ import {
   manifestPath,
   gameDir,
 } from './manifest.js';
-import type { InputMode, Manifest } from '../types/manifest.js';
+import type {
+  DesignIntent,
+  InputMode,
+  Manifest,
+} from '../types/manifest.js';
 import {
   PLAYCANVAS_MCP_SERVER_NAME,
   isPlayCanvasMcpEnabled,
@@ -18,6 +22,7 @@ export interface RunOptions {
   inputModes?: InputMode[];
   maxFixAttempts?: number;
   conceptPrompt?: string;
+  designIntent?: DesignIntent;
 }
 
 interface SubagentDef {
@@ -43,10 +48,13 @@ const SUBAGENTS: Record<string, SubagentDef> = {
       'Decomposes the premise + concept into a VerticalSlicePlan and an asset list.',
     prompt: [
       'You are the slice planner.',
-      'Read the manifest and concept image (which is a multi-panel "target screenshots" composite, NOT a hero shot — interpret it as gameplay vision, not a literal asset).',
-      'Produce manifest.plan with: title, oneLineHook, inputModes (must include keyboard, touch, gamepad), per-mode controls, exactly one level for v1, mechanics, win/lose conditions.',
+      'AUTHORITATIVE INPUTS (read first, in this order): manifest.designIntent (genre + core mechanics — player-confirmed, non-negotiable), then manifest.premise, then the concept image.',
+      'manifest.designIntent.genre defines the gameplay loop archetype (e.g. real-time strategy, twin-stick shooter, tower defense, sim). The level\'s mechanics, controls, and win/lose conditions must implement THAT genre.',
+      'manifest.designIntent.mechanics is the comma-or-prose list of systems the slice must demonstrate. Every item should be observable in gameplay — pick the 2-4 that fit a vertical slice and make them load-bearing.',
+      'The concept image is a multi-panel composite — interpret it as art-direction and atmosphere, NOT as a literal asset list. It cannot override designIntent.',
+      'Produce manifest.plan with: title, oneLineHook, inputModes (must include keyboard, touch, gamepad), per-mode controls that activate the chosen mechanics, exactly one level for v1, mechanics, winCondition, loseCondition.',
       'Append AssetRecords for each character/prop/environment piece needed.',
-      'CRITICAL: AssetRecord.prompt must describe ONE single subject (e.g. "low-poly orange fox character, t-pose, bushy tail" or "weathered wooden crate with iron bands"), NOT a scene or composite. asset-gen will feed this prompt to image-gen to produce a single-hero-shot source image, then to Meshy for image-to-3D.',
+      'CRITICAL: AssetRecord.prompt must describe ONE single subject (e.g. "low-poly orange fox character, t-pose, bushy tail" or "weathered wooden crate with iron bands"), NOT a scene or composite. asset-gen will feed this prompt to image-gen for a single-hero-shot source image, then to Meshy for image-to-3D.',
       'Set status="pending" and attempts=0 on each AssetRecord. Set manifest.status -> "asset_gen".',
     ].join(' '),
     tools: ['Read', 'Write', 'Edit'],
@@ -96,14 +104,27 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
   const conceptPrompt =
     opts.conceptPrompt?.trim() || process.env.PLAYGEN_CONCEPT_PROMPT?.trim() || '';
 
-  if (conceptPrompt) {
-    const { updateManifest } = await import('./manifest.js');
+  const envGenre = process.env.PLAYGEN_GENRE?.trim() ?? '';
+  const envMechanics = process.env.PLAYGEN_MECHANICS?.trim() ?? '';
+  const designIntent: DesignIntent | undefined =
+    opts.designIntent ??
+    (envGenre || envMechanics
+      ? { genre: envGenre, mechanics: envMechanics }
+      : undefined);
+
+  const { updateManifest } = await import('./manifest.js');
+  if (conceptPrompt || designIntent) {
     await updateManifest(manifest.slug, {
-      concept: {
-        prompt: conceptPrompt,
-        model: 'gpt-image-2',
-        imagePath: '',
-      },
+      ...(conceptPrompt
+        ? {
+            concept: {
+              prompt: conceptPrompt,
+              model: 'gpt-image-2',
+              imagePath: '',
+            },
+          }
+        : {}),
+      ...(designIntent ? { designIntent } : {}),
     });
   }
 
@@ -115,6 +136,9 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
     `Required input modes: ${inputModes.join(', ')}`,
     conceptPrompt
       ? `Pre-approved concept prompt: "${conceptPrompt}" (the concept subagent must use it verbatim, not compose a new one).`
+      : '',
+    designIntent
+      ? `Player-confirmed design intent (AUTHORITATIVE): genre="${designIntent.genre}", core mechanics="${designIntent.mechanics}". The planner must build manifest.plan around these; the concept image is art-direction only.`
       : '',
     ``,
     `Run the phases in order, delegating each to the matching subagent via the Agent tool:`,

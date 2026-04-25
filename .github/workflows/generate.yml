@@ -17,6 +17,16 @@ on:
         required: false
         default: ''
         type: string
+      genre:
+        description: Player-confirmed game genre (authoritative for the planner)
+        required: false
+        default: ''
+        type: string
+      mechanics:
+        description: Player-confirmed core mechanics (free text; authoritative for the planner)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -44,6 +54,8 @@ jobs:
       PLAYGEN_PERMISSION_MODE: bypassPermissions
       PLAYWRIGHT_HEADLESS: 'true'
       PLAYGEN_CONCEPT_PROMPT: ${{ inputs.concept_prompt }}
+      PLAYGEN_GENRE: ${{ inputs.genre }}
+      PLAYGEN_MECHANICS: ${{ inputs.mechanics }}
     steps:
       - uses: actions/checkout@v4
         with:
