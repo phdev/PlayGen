@@ -48,6 +48,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - name: Install Claude Code binary
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          echo "CLAUDE_CODE_BIN=$(which claude)" >> "$GITHUB_ENV"
       - name: Run orchestrator
         id: run
         run: npm run new -- "${{ inputs.premise }}" --modes ${{ inputs.modes }}

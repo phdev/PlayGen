@@ -114,6 +114,7 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
     | 'acceptEdits'
     | 'bypassPermissions'
     | 'plan';
+  const pathToClaudeCodeExecutable = process.env.CLAUDE_CODE_BIN || undefined;
 
   for await (const message of query({
     prompt: orchestratorPrompt,
@@ -130,6 +131,7 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
       agents: SUBAGENTS,
       permissionMode,
       ...(mcpServers ? { mcpServers } : {}),
+      ...(pathToClaudeCodeExecutable ? { pathToClaudeCodeExecutable } : {}),
     },
   })) {
     const m = message as { type?: string; subtype?: string; result?: unknown; session_id?: string };
