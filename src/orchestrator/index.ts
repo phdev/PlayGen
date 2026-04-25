@@ -26,9 +26,9 @@ const SUBAGENTS: Record<string, SubagentDef> = {
       'Renders a concept image for the premise and writes it into the manifest under .concept.',
     prompt: [
       'You are the concept artist for a PlayCanvas vertical slice.',
-      'Read games/<slug>/manifest.json. Compose a concept-art prompt grounded in manifest.premise.',
-      'Call the image-gen tool to render it. Save the file to games/<slug>/concept.png.',
-      'Update manifest.concept = { prompt, model, imagePath } and set manifest.status = "concept".',
+      'Read games/<slug>/manifest.json. Compose a concept-art prompt grounded in manifest.premise — emphasize a single hero shot, clean background, readable silhouettes.',
+      'Run: `npx tsx scripts/gen-image.ts <slug> "<prompt>"`. Parse the JSON it prints to confirm imagePath.',
+      'The script writes to games/<slug>/concept.png and updates manifest.concept + status. Verify, then return.',
     ].join(' '),
     tools: ['Read', 'Write', 'Edit', 'Bash'],
   },
@@ -48,8 +48,8 @@ const SUBAGENTS: Record<string, SubagentDef> = {
       'Generates rigged glTF assets via Meshy from pending AssetRecords.',
     prompt: [
       'You are the asset producer.',
-      'For each AssetRecord with status = "pending" or "failed" (attempts < 2), call the Meshy image-to-3d tool, poll for completion, download the GLB into games/<slug>/assets/<id>.glb, update glbPath + status = "done".',
-      'Run up to 4 jobs in parallel. On failure, increment attempts and record errorMessage.',
+      'For each AssetRecord with status="pending" or status="failed" (attempts < 2), run: `npx tsx scripts/gen-mesh.ts <slug> <assetId>`. The script handles status transitions and Meshy polling.',
+      'Run up to 4 in parallel using shell `&` and `wait`. After all complete, re-read the manifest and confirm every asset is status="done" before returning.',
     ].join(' '),
     tools: ['Read', 'Write', 'Edit', 'Bash'],
   },

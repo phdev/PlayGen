@@ -12,6 +12,8 @@
     "typecheck": "tsc --noEmit",
     "validate-env": "tsx scripts/validate-env.ts",
     "new": "tsx scripts/new-slice.ts",
+    "gen:image": "tsx scripts/gen-image.ts",
+    "gen:mesh": "tsx scripts/gen-mesh.ts",
     "splat:voxel": "splat-transform"
   },
   "dependencies": {

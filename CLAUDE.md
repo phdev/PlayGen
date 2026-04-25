@@ -44,6 +44,10 @@ games/                      generated slices land here at runtime
 - `src/orchestrator/manifest.ts` — `createManifest`, `loadManifest`, `saveManifest` (atomic), `updateManifest`, `setStatus`, `recordError`; on-disk layout: `games/<slug>/{manifest.json, concept.png, assets/, screenshots/}`
 - `src/orchestrator/index.ts` — Agent SDK entry: `runOrchestrator({ premise, inputModes? })` registers five subagents (`concept`, `planner`, `asset-gen`, `scene-assembly`, `playtest`) and runs the phase loop
 - `src/tools/splat-transform.ts` — `generateVoxelCollision()` shells the CLI with `-R`/`-A` flags and returns `{jsonPath, binPath}`
+- `src/tools/image-gen.ts` — `generateConceptImage()` via OpenAI SDK; default model `gpt-image-2`, env override `PLAYGEN_IMAGE_MODEL`
+- `src/tools/meshy.ts` — `generateMeshFromImage()` posts to `api.meshy.ai/openapi/v1/image-to-3d`, polls every 5s, downloads the GLB
+- `scripts/gen-image.ts` — CLI: `npm run gen:image -- <slug> "<prompt>"`. The `concept` subagent shells to this.
+- `scripts/gen-mesh.ts` — CLI: `npm run gen:mesh -- <slug> <assetId>`. The `asset-gen` subagent shells to this and parallelizes with `&`/`wait`.
 - `src/harness/instrumentation.ts` — `initPlayGen`, `emit`, `setReady`, `setPlaying`, `tick`, `reportError`
 - `src/harness/inputs/gamepad.ts` — `installVirtualGamepad`, `pressButton`/`releaseButton`/`setAxis`/`tap` with standard-mapping constants
 - `scripts/new-slice.ts` — CLI: `npm run new -- "<premise>" [--modes keyboard,touch,gamepad]`
@@ -51,10 +55,9 @@ games/                      generated slices land here at runtime
 
 ## What's next (in build order)
 
-1. `src/tools/{image-gen,meshy}.ts` — concept image + image-to-3d API wrappers (subagents call these)
-2. `src/tools/{playcanvas-mcp,playcanvas-rest}.ts` — MCP client config + REST multipart upload (fills the binary-asset-upload gap)
-3. `src/harness/runner.ts` + `inputs/{keyboard,mouse,touch}.ts` + `scenarios/{boot,golden-path,input-parity}.ts` + `judge.ts`
-4. `templates/basic-platformer/` — first PlayCanvas skeleton with `__playgen` wired in
+1. `src/tools/{playcanvas-mcp,playcanvas-rest}.ts` — MCP client config + REST multipart upload (fills the binary-asset-upload gap the editor MCP server doesn't cover)
+2. `src/harness/runner.ts` + `inputs/{keyboard,mouse,touch}.ts` + `scenarios/{boot,golden-path,input-parity}.ts` + `judge.ts`
+3. `templates/basic-platformer/` — first PlayCanvas skeleton with `__playgen` wired in
 
 ## Out of scope for v1
 
