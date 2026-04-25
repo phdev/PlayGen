@@ -15,16 +15,6 @@ type Mode = (typeof ALL_MODES)[number];
 const READY_POLL_MS = 15_000;
 const READY_GIVE_UP_MS = 60 * 60_000;
 
-function defaultConceptPrompt(premise: string): string {
-  return [
-    'A single composite image arranged as a 3x3 grid of "target screenshots" for a video game vertical slice — like a press kit or pitch sheet.',
-    'Each panel shows a distinct in-game moment: gameplay action, environment establishing shot, character close-up, UI/HUD overlay, mechanic in use, key narrative beat.',
-    'Cinematic but readable; panels stand alone yet together convey the full game vision and feel.',
-    'Include diegetic UI overlays where relevant (objectives, stats, notifications) to convey the loop.',
-    `Premise: ${premise}`,
-  ].join(' ');
-}
-
 export function Author() {
   const [premise, setPremise] = useState('');
   const [modes, setModes] = useState<Set<Mode>>(new Set(ALL_MODES));
@@ -126,8 +116,7 @@ export function Author() {
       setConceptError('Enter a premise first.');
       return;
     }
-    const promptToUse =
-      conceptPrompt.trim() || defaultConceptPrompt(trimmedPremise);
+    const promptToUse = conceptPrompt.trim() || trimmedPremise;
     if (!conceptPrompt.trim()) setConceptPrompt(promptToUse);
     setConceptBusy(true);
     setConceptError(null);
