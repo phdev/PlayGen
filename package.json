@@ -1,0 +1,28 @@
+{
+  "name": "playgen",
+  "version": "0.0.1",
+  "description": "Vertical-slice game generator: premise to playable PlayCanvas build, validated end-to-end.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "validate-env": "tsx scripts/validate-env.ts",
+    "splat:voxel": "splat-transform"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.119",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@playcanvas/splat-transform": "^1.10.2",
+    "openai": "^6.34.0",
+    "playwright": "^1.59.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}
