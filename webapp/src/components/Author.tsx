@@ -6,6 +6,10 @@ import {
   listRecentRuns,
   type RunSummary,
 } from '../lib/github';
+import { fetchSlices, type SliceEntry } from '../lib/slices';
+
+const READY_POLL_MS = 15_000;
+const READY_GIVE_UP_MS = 60 * 60_000;
 
 const ALL_MODES = ['keyboard', 'touch', 'gamepad'] as const;
 type Mode = (typeof ALL_MODES)[number];
@@ -17,6 +21,11 @@ export function Author() {
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<string | null>(null);
   const [runs, setRuns] = useState<RunSummary[] | null>(null);
+  const [pending, setPending] = useState<{
+    since: number;
+    baseline: Set<string>;
+  } | null>(null);
+  const [readySlice, setReadySlice] = useState<SliceEntry | null>(null);
   const cloudReady = isDispatchConfigured();
 
   const command = useMemo(() => {
@@ -55,6 +64,41 @@ export function Author() {
     if (cloudReady) refreshRuns();
   }, [cloudReady]);
 
+  useEffect(() => {
+    if (!pending) return;
+    const { since, baseline } = pending;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async (): Promise<void> => {
+      if (cancelled) return;
+      try {
+        const slices = await fetchSlices();
+        const fresh = slices.find(
+          (s) => !baseline.has(s.slug) && Boolean(s.publishedUrl),
+        );
+        if (fresh && !cancelled) {
+          setReadySlice(fresh);
+          setPending(null);
+          return;
+        }
+      } catch {
+        // ignore transient fetch errors
+      }
+      if (Date.now() - since > READY_GIVE_UP_MS) {
+        if (!cancelled) setPending(null);
+        return;
+      }
+      if (!cancelled) timer = setTimeout(poll, READY_POLL_MS);
+    };
+
+    timer = setTimeout(poll, READY_POLL_MS);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [pending]);
+
   async function runInCloud(): Promise<void> {
     if (!premise.trim()) {
       setCloudStatus('Enter a premise first.');
@@ -62,14 +106,24 @@ export function Author() {
     }
     setCloudBusy(true);
     setCloudStatus('Dispatching workflow…');
+    setReadySlice(null);
     try {
       await dispatchGenerate({
         premise: premise.trim(),
         modes: Array.from(modes),
       });
       setCloudStatus(
-        'Run started. The gallery will update once the workflow finishes (~5–15 min). Use the link below to watch progress.',
+        'Run started. A "Play it" link will appear here once the slice is ready (~5–15 min).',
       );
+      try {
+        const baselineSlices = await fetchSlices();
+        setPending({
+          since: Date.now(),
+          baseline: new Set(baselineSlices.map((s) => s.slug)),
+        });
+      } catch {
+        setPending({ since: Date.now(), baseline: new Set() });
+      }
       setTimeout(refreshRuns, 2000);
     } catch (err: unknown) {
       setCloudStatus(
@@ -128,6 +182,14 @@ export function Author() {
             </a>
           </div>
           {cloudStatus && <p className="cloud-status">{cloudStatus}</p>}
+          {readySlice && (
+            <div className="ready-card">
+              <strong>{readySlice.title ?? readySlice.slug}</strong> is ready.
+              <a className="ready-link" href={`#/slice/${readySlice.slug}`}>
+                Play it →
+              </a>
+            </div>
+          )}
           {runs && runs.length > 0 && (
             <ul className="runs">
               {runs.map((r) => (

@@ -309,6 +309,29 @@ button.ghost:hover {
   color: var(--fg-muted);
 }
 
+.ready-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  background: rgba(255, 166, 87, 0.08);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.ready-card .ready-link {
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.ready-card .ready-link:hover {
+  text-decoration: underline;
+}
+
 .runs {
   margin: 12px 0 0;
   padding: 0;
