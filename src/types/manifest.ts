@@ -1,0 +1,111 @@
+import type { PlayGenState } from './playgen.js';
+
+export type ManifestStatus =
+  | 'init'
+  | 'concept'
+  | 'planning'
+  | 'asset_gen'
+  | 'scene_assembly'
+  | 'playtest'
+  | 'fixing'
+  | 'complete'
+  | 'failed';
+
+export type InputMode = 'keyboard' | 'touch' | 'gamepad';
+
+export interface Manifest {
+  slug: string;
+  createdAt: string;
+  updatedAt: string;
+  status: ManifestStatus;
+  premise: string;
+  concept?: ConceptArtifact;
+  plan?: VerticalSlicePlan;
+  assets: AssetRecord[];
+  splats: SplatRecord[];
+  playcanvas?: PlayCanvasProject;
+  playtests: PlaytestRun[];
+  errors: ManifestError[];
+}
+
+export interface ConceptArtifact {
+  prompt: string;
+  model: string;
+  imagePath: string;
+  variants?: string[];
+}
+
+export interface VerticalSlicePlan {
+  title: string;
+  oneLineHook: string;
+  inputModes: InputMode[];
+  controls: Partial<Record<InputMode, ControlBinding[]>>;
+  levels: LevelSpec[];
+  winCondition: string;
+  loseCondition: string;
+}
+
+export interface ControlBinding {
+  action: string;
+  binding: string;
+}
+
+export interface LevelSpec {
+  id: string;
+  name: string;
+  description: string;
+  durationGoalSec: number;
+  assetIds: string[];
+  mechanics: string[];
+}
+
+export type AssetKind = 'character' | 'prop' | 'environment' | 'fx';
+export type AssetStatus = 'pending' | 'queued' | 'rendering' | 'done' | 'failed';
+
+export interface AssetRecord {
+  id: string;
+  kind: AssetKind;
+  prompt: string;
+  sourceImagePath?: string;
+  glbPath?: string;
+  status: AssetStatus;
+  meshyTaskId?: string;
+  attempts: number;
+  errorMessage?: string;
+}
+
+export interface SplatRecord {
+  id: string;
+  source: 'photogrammetry' | 'manual';
+  plyPath: string;
+  voxelJsonPath?: string;
+  voxelBinPath?: string;
+  voxelResolution?: number;
+  opacityCutoff?: number;
+}
+
+export interface PlayCanvasProject {
+  projectId: string;
+  sceneId?: string;
+  publishedUrl?: string;
+}
+
+export type Verdict = 'pass' | 'fail' | 'inconclusive';
+
+export interface PlaytestRun {
+  id: string;
+  scenario: string;
+  inputMode: InputMode;
+  verdict: Verdict;
+  durationSec: number;
+  finalState?: PlayGenState;
+  screenshots: string[];
+  notes?: string;
+}
+
+export interface ManifestError {
+  t: string;
+  stage: ManifestStatus;
+  message: string;
+  details?: unknown;
+}

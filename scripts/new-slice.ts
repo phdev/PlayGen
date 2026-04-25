@@ -1,0 +1,48 @@
+import { runOrchestrator } from '../src/orchestrator/index.js';
+import type { InputMode } from '../src/types/manifest.js';
+
+function parseArgs(argv: string[]): { premise: string; modes?: InputMode[] } {
+  const args = argv.slice(2);
+  let modes: InputMode[] | undefined;
+  const premiseParts: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--modes' || a === '-m') {
+      const next = args[++i];
+      if (!next) throw new Error('--modes requires a comma-separated list');
+      modes = next.split(',').map((s) => s.trim()) as InputMode[];
+    } else if (a === '--help' || a === '-h') {
+      printUsageAndExit(0);
+    } else {
+      premiseParts.push(a);
+    }
+  }
+  const premise = premiseParts.join(' ').trim();
+  if (!premise) printUsageAndExit(1);
+  return { premise, modes };
+}
+
+function printUsageAndExit(code: number): never {
+  const msg = [
+    'Usage: tsx scripts/new-slice.ts "<premise>" [--modes keyboard,touch,gamepad]',
+    '',
+    'Generates a PlayCanvas vertical slice from a premise and validates it end-to-end.',
+  ].join('\n');
+  (code === 0 ? process.stdout : process.stderr).write(msg + '\n');
+  process.exit(code);
+}
+
+const { premise, modes } = parseArgs(process.argv);
+
+runOrchestrator({ premise, inputModes: modes }).then(
+  (manifest) => {
+    process.stdout.write(
+      `\nDone: ${manifest.slug} (status=${manifest.status})\n` +
+        `Manifest: games/${manifest.slug}/manifest.json\n`,
+    );
+  },
+  (err: unknown) => {
+    process.stderr.write(`\nFailed: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    process.exit(1);
+  },
+);
