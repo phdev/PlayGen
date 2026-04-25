@@ -6,6 +6,11 @@ import {
   gameDir,
 } from './manifest.js';
 import type { InputMode, Manifest } from '../types/manifest.js';
+import {
+  PLAYCANVAS_MCP_SERVER_NAME,
+  isPlayCanvasMcpEnabled,
+  playcanvasMcpServerConfig,
+} from '../tools/playcanvas-mcp.js';
 
 export interface RunOptions {
   premise: string;
@@ -17,7 +22,7 @@ export interface RunOptions {
 interface SubagentDef {
   description: string;
   prompt: string;
-  tools: string[];
+  tools?: string[];
 }
 
 const SUBAGENTS: Record<string, SubagentDef> = {
@@ -57,11 +62,11 @@ const SUBAGENTS: Record<string, SubagentDef> = {
     description: 'Builds the PlayCanvas scene via the editor MCP server.',
     prompt: [
       'You are the scene builder.',
-      'Use the playcanvas MCP tools to create entities, attach scripts, drop in assets, and wire up controls per manifest.plan.controls.',
+      'For binary asset uploads (GLBs, textures, .ply splats, .voxel.json collision), shell to: `npx tsx scripts/upload-asset.ts <slug> <assetId>` — the editor MCP server cannot push binaries directly.',
+      'For scene structure, use the playcanvas MCP tools: create_entities, add_components, add_script_component_script, set_script_text, instantiate_template_assets, modify_scene_settings.',
       'Every generated game MUST initialize window.__playgen via src/types/playgen.ts and emit progress/win/lose events.',
       'Set manifest.playcanvas = { projectId, sceneId, publishedUrl }. Status -> "playtest".',
     ].join(' '),
-    tools: ['Read', 'Write', 'Edit', 'Bash'],
   },
   playtest: {
     description:
@@ -101,6 +106,10 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
     `Read the manifest before each phase, persist updates after. Stop when manifest.status = "complete" or "failed".`,
   ].join('\n');
 
+  const mcpServers = isPlayCanvasMcpEnabled()
+    ? { [PLAYCANVAS_MCP_SERVER_NAME]: playcanvasMcpServerConfig() }
+    : undefined;
+
   for await (const message of query({
     prompt: orchestratorPrompt,
     options: {
@@ -115,6 +124,7 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
       ],
       agents: SUBAGENTS,
       permissionMode: 'acceptEdits',
+      ...(mcpServers ? { mcpServers } : {}),
     },
   })) {
     const m = message as { type?: string; subtype?: string; result?: unknown; session_id?: string };

@@ -48,6 +48,10 @@ games/                      generated slices land here at runtime
 - `src/tools/meshy.ts` — `generateMeshFromImage()` posts to `api.meshy.ai/openapi/v1/image-to-3d`, polls every 5s, downloads the GLB
 - `scripts/gen-image.ts` — CLI: `npm run gen:image -- <slug> "<prompt>"`. The `concept` subagent shells to this.
 - `scripts/gen-mesh.ts` — CLI: `npm run gen:mesh -- <slug> <assetId>`. The `asset-gen` subagent shells to this and parallelizes with `&`/`wait`.
+- `src/tools/playcanvas-rest.ts` — `uploadAsset()`, `listAssets()`, `deleteAsset()` against `https://playcanvas.com/api`. Fills the binary-upload gap the editor MCP server doesn't cover.
+- `src/tools/playcanvas-mcp.ts` — `playcanvasMcpServerConfig()` for the Agent SDK's `mcpServers` option. Defaults to `npx -y @playcanvas/editor-mcp-server`; override via `PLAYCANVAS_MCP_SERVER_PATH` to point at a local clone. Disable entirely with `PLAYGEN_DISABLE_PLAYCANVAS_MCP=1`.
+- `scripts/upload-asset.ts` — CLI: `npm run upload:asset -- <slug> <assetId>`. The `scene-assembly` subagent shells to this for GLBs/splats/voxel collision.
+- Orchestrator now wires the PlayCanvas MCP into the Agent SDK via `mcpServers`. The `scene-assembly` subagent omits its `tools` allowlist so the inherited MCP tools (create_entities, add_components, set_script_text, etc.) are available to it.
 - `src/harness/instrumentation.ts` — `initPlayGen`, `emit`, `setReady`, `setPlaying`, `tick`, `reportError`
 - `src/harness/inputs/gamepad.ts` — `installVirtualGamepad`, `pressButton`/`releaseButton`/`setAxis`/`tap` with standard-mapping constants
 - `scripts/new-slice.ts` — CLI: `npm run new -- "<premise>" [--modes keyboard,touch,gamepad]`
