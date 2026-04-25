@@ -46,8 +46,7 @@ export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
 }
 
 export interface ConceptResult {
-  b64Json: string | null;
-  url: string | null;
+  imageUrl: string;
   prompt: string;
   model: string;
 }
@@ -74,17 +73,13 @@ export async function generateConcept(prompt: string): Promise<ConceptResult> {
         : `concept failed ${res.status}`,
     );
   }
-  const j = (await res.json()) as {
-    b64_json?: string | null;
-    url?: string | null;
-    prompt: string;
-    model: string;
-  };
+  const blob = await res.blob();
+  const imageUrl = URL.createObjectURL(blob);
+  const promptHeader = res.headers.get('x-playgen-prompt');
   return {
-    b64Json: j.b64_json ?? null,
-    url: j.url ?? null,
-    prompt: j.prompt,
-    model: j.model,
+    imageUrl,
+    prompt: promptHeader ? decodeURIComponent(promptHeader) : prompt,
+    model: res.headers.get('x-playgen-model') ?? 'gpt-image-2',
   };
 }
 

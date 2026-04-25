@@ -30,7 +30,6 @@ export function Author() {
   const [copied, setCopied] = useState(false);
 
   const [conceptPrompt, setConceptPrompt] = useState('');
-  const [conceptB64, setConceptB64] = useState<string | null>(null);
   const [conceptUrl, setConceptUrl] = useState<string | null>(null);
   const [conceptBusy, setConceptBusy] = useState(false);
   const [conceptError, setConceptError] = useState<string | null>(null);
@@ -55,9 +54,7 @@ export function Author() {
     return `npm run new -- "${safe || '<your premise>'}"${flag}`;
   }, [premise, modes]);
 
-  const conceptSrc = conceptB64
-    ? `data:image/png;base64,${conceptB64}`
-    : conceptUrl;
+  const conceptSrc = conceptUrl;
 
   function toggle(mode: Mode): void {
     setModes((s) => {
@@ -135,8 +132,10 @@ export function Author() {
     setConceptError(null);
     try {
       const result = await generateConcept(promptToUse);
-      setConceptB64(result.b64Json);
-      setConceptUrl(result.url);
+      setConceptUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return result.imageUrl;
+      });
       if (result.prompt) setConceptPrompt(result.prompt);
     } catch (err: unknown) {
       setConceptError(
@@ -148,12 +147,22 @@ export function Author() {
   }
 
   function resetConcept(): void {
-    setConceptB64(null);
-    setConceptUrl(null);
+    setConceptUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     setConceptPrompt('');
     setConceptError(null);
     setApproved(false);
   }
+
+  useEffect(() => {
+    return () => {
+      if (conceptUrl) URL.revokeObjectURL(conceptUrl);
+    };
+    // intentionally only on unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function approveAndDispatch(): Promise<void> {
     if (!premise.trim() || !conceptPrompt.trim()) return;

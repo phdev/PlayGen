@@ -179,19 +179,22 @@ async function concept(
     data?: Array<{ b64_json?: string; url?: string }>;
   };
   const item = json.data?.[0];
-  if (!item || (!item.b64_json && !item.url)) {
+  if (!item?.b64_json) {
     return jsonResponse(502, { error: 'no image returned' }, cors);
   }
-  return jsonResponse(
-    200,
-    {
-      b64_json: item.b64_json ?? null,
-      url: item.url ?? null,
-      prompt,
-      model: 'gpt-image-2',
+
+  const bytes = Uint8Array.from(atob(item.b64_json), (c) => c.charCodeAt(0));
+  return new Response(bytes, {
+    status: 200,
+    headers: {
+      ...cors,
+      'content-type': 'image/png',
+      'content-length': String(bytes.byteLength),
+      'cache-control': 'no-store',
+      'x-playgen-model': 'gpt-image-2',
+      'x-playgen-prompt': encodeURIComponent(prompt),
     },
-    { ...cors, 'cache-control': 'no-store' },
-  );
+  });
 }
 
 async function listRuns(
