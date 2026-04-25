@@ -151,61 +151,101 @@ async function concept(
     );
   }
 
-  const res = await fetch(OPENAI_IMAGES_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-      'Content-Type': 'application/json',
+  const encoder = new TextEncoder();
+  const sseFrame = (event: string, data: unknown): Uint8Array =>
+    encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      let closed = false;
+      const closeOnce = (): void => {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      };
+      const enqueueSafe = (chunk: Uint8Array): void => {
+        if (closed) return;
+        try {
+          controller.enqueue(chunk);
+        } catch {
+          closed = true;
+        }
+      };
+
+      const ticker = setInterval(() => {
+        enqueueSafe(sseFrame('ping', { ts: Date.now() }));
+      }, 5000);
+
+      enqueueSafe(sseFrame('start', { prompt, model: 'gpt-image-2' }));
+
+      (async (): Promise<void> => {
+        try {
+          const res = await fetch(OPENAI_IMAGES_URL, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'gpt-image-2',
+              prompt,
+              size: '1024x1024',
+              quality: 'low',
+              n: 1,
+            }),
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            enqueueSafe(
+              sseFrame('error', {
+                status: res.status,
+                detail: text,
+              }),
+            );
+            return;
+          }
+
+          const json = (await res.json()) as {
+            data?: Array<{ b64_json?: string }>;
+          };
+          const item = json.data?.[0];
+          if (!item?.b64_json) {
+            enqueueSafe(sseFrame('error', { detail: 'no image returned' }));
+            return;
+          }
+
+          enqueueSafe(
+            sseFrame('image', {
+              b64_json: item.b64_json,
+              prompt,
+              model: 'gpt-image-2',
+            }),
+          );
+        } catch (err: unknown) {
+          enqueueSafe(
+            sseFrame('error', {
+              detail: err instanceof Error ? err.message : String(err),
+            }),
+          );
+        } finally {
+          clearInterval(ticker);
+          closeOnce();
+        }
+      })();
     },
-    body: JSON.stringify({
-      model: 'gpt-image-2',
-      prompt,
-      size: '1024x1024',
-      quality: 'low',
-      n: 1,
-      response_format: 'url',
-    }),
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    return jsonResponse(
-      res.status,
-      { error: 'openai image gen failed', detail: text },
-      cors,
-    );
-  }
-
-  const json = (await res.json()) as {
-    data?: Array<{ b64_json?: string; url?: string }>;
-  };
-  const item = json.data?.[0];
-  if (!item) {
-    return jsonResponse(502, { error: 'no image returned' }, cors);
-  }
-
-  if (item.url) {
-    return jsonResponse(
-      200,
-      { imageUrl: item.url, prompt, model: 'gpt-image-2' },
-      { ...cors, 'cache-control': 'no-store' },
-    );
-  }
-
-  // Fallback: model didn't honor response_format='url' and gave us bytes.
-  if (!item.b64_json) {
-    return jsonResponse(502, { error: 'no image returned' }, cors);
-  }
-  const bytes = Uint8Array.from(atob(item.b64_json), (c) => c.charCodeAt(0));
-  return new Response(bytes, {
+  return new Response(stream, {
     status: 200,
     headers: {
       ...cors,
-      'content-type': 'image/png',
-      'content-length': String(bytes.byteLength),
+      'content-type': 'text/event-stream',
       'cache-control': 'no-store',
-      'x-playgen-model': 'gpt-image-2',
-      'x-playgen-prompt': encodeURIComponent(prompt),
     },
   });
 }

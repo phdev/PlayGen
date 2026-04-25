@@ -73,23 +73,77 @@ export async function generateConcept(prompt: string): Promise<ConceptResult> {
         : `concept failed ${res.status}`,
     );
   }
+
   const contentType = res.headers.get('content-type') ?? '';
-  if (contentType.startsWith('application/json')) {
-    const j = (await res.json()) as {
-      imageUrl: string;
-      prompt: string;
-      model: string;
+  if (!contentType.startsWith('text/event-stream') || !res.body) {
+    // Legacy binary fallback path (kept for any older worker version).
+    const blob = await res.blob();
+    return {
+      imageUrl: URL.createObjectURL(blob),
+      prompt,
+      model: res.headers.get('x-playgen-model') ?? 'gpt-image-2',
     };
-    return { imageUrl: j.imageUrl, prompt: j.prompt, model: j.model };
   }
-  const blob = await res.blob();
-  const imageUrl = URL.createObjectURL(blob);
-  const promptHeader = res.headers.get('x-playgen-prompt');
-  return {
-    imageUrl,
-    prompt: promptHeader ? decodeURIComponent(promptHeader) : prompt,
-    model: res.headers.get('x-playgen-model') ?? 'gpt-image-2',
-  };
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let sep: number;
+    while ((sep = buffer.indexOf('\n\n')) >= 0) {
+      const raw = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      const event = parseSseEvent(raw);
+      if (!event) continue;
+      if (event.event === 'ping' || event.event === 'start') continue;
+      if (event.event === 'error') {
+        const detail =
+          (event.data && (event.data.detail as string)) ?? 'unknown error';
+        throw new Error(detail);
+      }
+      if (event.event === 'image') {
+        const b64 = (event.data?.b64_json as string) ?? '';
+        const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: 'image/png' });
+        return {
+          imageUrl: URL.createObjectURL(blob),
+          prompt: (event.data?.prompt as string) ?? prompt,
+          model: (event.data?.model as string) ?? 'gpt-image-2',
+        };
+      }
+    }
+  }
+
+  throw new Error('concept stream ended without an image event');
+}
+
+function parseSseEvent(
+  raw: string,
+): { event: string; data: Record<string, unknown> | null } | null {
+  if (!raw.trim()) return null;
+  let event = 'message';
+  const dataLines: string[] = [];
+  for (const line of raw.split('\n')) {
+    if (line.startsWith('event:')) {
+      event = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trimStart());
+    }
+  }
+  let data: Record<string, unknown> | null = null;
+  if (dataLines.length > 0) {
+    try {
+      data = JSON.parse(dataLines.join('\n')) as Record<string, unknown>;
+    } catch {
+      data = null;
+    }
+  }
+  return { event, data };
 }
 
 export interface RunSummary {
