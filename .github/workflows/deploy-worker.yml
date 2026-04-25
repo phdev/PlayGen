@@ -26,5 +26,7 @@ jobs:
           workingDirectory: worker
           secrets: |
             GH_DISPATCH_PAT
+            OPENAI_API_KEY
         env:
           GH_DISPATCH_PAT: ${{ secrets.GH_DISPATCH_PAT }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

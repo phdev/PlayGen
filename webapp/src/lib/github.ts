@@ -14,6 +14,7 @@ export function isDispatchConfigured(): boolean {
 export interface DispatchOptions {
   premise: string;
   modes: string[];
+  conceptPrompt?: string;
 }
 
 export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
@@ -28,6 +29,7 @@ export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
     body: JSON.stringify({
       premise: opts.premise,
       modes: opts.modes.join(','),
+      ...(opts.conceptPrompt ? { conceptPrompt: opts.conceptPrompt } : {}),
     }),
   });
   if (!res.ok) {
@@ -41,6 +43,49 @@ export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
         : `dispatch failed ${res.status}`,
     );
   }
+}
+
+export interface ConceptResult {
+  b64Json: string | null;
+  url: string | null;
+  prompt: string;
+  model: string;
+}
+
+export async function generateConcept(prompt: string): Promise<ConceptResult> {
+  if (!DISPATCH_BASE) {
+    throw new Error(
+      'Concept generation is not configured (VITE_DISPATCH_URL is unset).',
+    );
+  }
+  const res = await fetch(`${DISPATCH_BASE}/concept`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ prompt }),
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      detail?: string;
+    };
+    throw new Error(
+      j.error
+        ? `${j.error}${j.detail ? `: ${j.detail}` : ''}`
+        : `concept failed ${res.status}`,
+    );
+  }
+  const j = (await res.json()) as {
+    b64_json?: string | null;
+    url?: string | null;
+    prompt: string;
+    model: string;
+  };
+  return {
+    b64Json: j.b64_json ?? null,
+    url: j.url ?? null,
+    prompt: j.prompt,
+    model: j.model,
+  };
 }
 
 export interface RunSummary {

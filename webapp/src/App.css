@@ -309,6 +309,23 @@ button.ghost:hover {
   color: var(--fg-muted);
 }
 
+.cloud-status.error {
+  color: var(--error);
+  border-color: rgba(255, 123, 123, 0.4);
+}
+
+.concept-preview {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  margin: 12px 0 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
 .ready-card {
   display: flex;
   align-items: center;

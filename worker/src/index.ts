@@ -1,12 +1,15 @@
 interface Env {
   GH_DISPATCH_PAT: string;
+  OPENAI_API_KEY: string;
   ALLOWED_ORIGINS: string;
   GITHUB_REPO: string;
   GITHUB_WORKFLOW: string;
 }
 
 const GITHUB_API = 'https://api.github.com';
+const OPENAI_IMAGES_URL = 'https://api.openai.com/v1/images/generations';
 const MAX_PREMISE_LEN = 500;
+const MAX_CONCEPT_PROMPT_LEN = 2000;
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -28,6 +31,9 @@ export default {
     const url = new URL(req.url);
     if (url.pathname === '/dispatch' && req.method === 'POST') {
       return dispatch(req, env, cors);
+    }
+    if (url.pathname === '/concept' && req.method === 'POST') {
+      return concept(req, env, cors);
     }
     if (url.pathname === '/runs' && req.method === 'GET') {
       return listRuns(env, cors);
@@ -51,9 +57,13 @@ async function dispatch(
   env: Env,
   cors: Record<string, string>,
 ): Promise<Response> {
-  let body: { premise?: unknown; modes?: unknown };
+  let body: {
+    premise?: unknown;
+    modes?: unknown;
+    conceptPrompt?: unknown;
+  };
   try {
-    body = (await req.json()) as { premise?: unknown; modes?: unknown };
+    body = (await req.json()) as typeof body;
   } catch {
     return jsonResponse(400, { error: 'invalid json' }, cors);
   }
@@ -64,6 +74,8 @@ async function dispatch(
     typeof body.modes === 'string' && body.modes.trim().length > 0
       ? body.modes.trim()
       : 'keyboard,touch,gamepad';
+  const conceptPrompt =
+    typeof body.conceptPrompt === 'string' ? body.conceptPrompt.trim() : '';
 
   if (!premise) {
     return jsonResponse(400, { error: 'premise required' }, cors);
@@ -75,6 +87,16 @@ async function dispatch(
       cors,
     );
   }
+  if (conceptPrompt.length > MAX_CONCEPT_PROMPT_LEN) {
+    return jsonResponse(
+      400,
+      { error: `concept prompt too long (max ${MAX_CONCEPT_PROMPT_LEN})` },
+      cors,
+    );
+  }
+
+  const inputs: Record<string, string> = { premise, modes: modesRaw };
+  if (conceptPrompt) inputs.concept_prompt = conceptPrompt;
 
   const res = await fetch(
     `${GITHUB_API}/repos/${env.GITHUB_REPO}/actions/workflows/${env.GITHUB_WORKFLOW}/dispatches`,
@@ -86,10 +108,7 @@ async function dispatch(
         'X-GitHub-Api-Version': '2022-11-28',
         'User-Agent': 'playgen-dispatch-worker',
       },
-      body: JSON.stringify({
-        ref: 'main',
-        inputs: { premise, modes: modesRaw },
-      }),
+      body: JSON.stringify({ ref: 'main', inputs }),
     },
   );
 
@@ -102,6 +121,76 @@ async function dispatch(
     );
   }
   return jsonResponse(202, { ok: true }, cors);
+}
+
+async function concept(
+  req: Request,
+  env: Env,
+  cors: Record<string, string>,
+): Promise<Response> {
+  if (!env.OPENAI_API_KEY) {
+    return jsonResponse(
+      503,
+      { error: 'OPENAI_API_KEY not configured on the worker' },
+      cors,
+    );
+  }
+  let body: { prompt?: unknown };
+  try {
+    body = (await req.json()) as { prompt?: unknown };
+  } catch {
+    return jsonResponse(400, { error: 'invalid json' }, cors);
+  }
+  const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
+  if (!prompt) return jsonResponse(400, { error: 'prompt required' }, cors);
+  if (prompt.length > MAX_CONCEPT_PROMPT_LEN) {
+    return jsonResponse(
+      400,
+      { error: `prompt too long (max ${MAX_CONCEPT_PROMPT_LEN})` },
+      cors,
+    );
+  }
+
+  const res = await fetch(OPENAI_IMAGES_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-image-2',
+      prompt,
+      size: '1024x1024',
+      n: 1,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    return jsonResponse(
+      res.status,
+      { error: 'openai image gen failed', detail: text },
+      cors,
+    );
+  }
+
+  const json = (await res.json()) as {
+    data?: Array<{ b64_json?: string; url?: string }>;
+  };
+  const item = json.data?.[0];
+  if (!item || (!item.b64_json && !item.url)) {
+    return jsonResponse(502, { error: 'no image returned' }, cors);
+  }
+  return jsonResponse(
+    200,
+    {
+      b64_json: item.b64_json ?? null,
+      url: item.url ?? null,
+      prompt,
+      model: 'gpt-image-2',
+    },
+    cors,
+  );
 }
 
 async function listRuns(

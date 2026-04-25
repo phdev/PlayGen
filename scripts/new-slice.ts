@@ -3,9 +3,14 @@ import { runOrchestrator } from '../src/orchestrator/index.js';
 import { newSlug } from '../src/orchestrator/manifest.js';
 import type { InputMode } from '../src/types/manifest.js';
 
-function parseArgs(argv: string[]): { premise: string; modes?: InputMode[] } {
+function parseArgs(argv: string[]): {
+  premise: string;
+  modes?: InputMode[];
+  conceptPrompt?: string;
+} {
   const args = argv.slice(2);
   let modes: InputMode[] | undefined;
+  let conceptPrompt: string | undefined;
   const premiseParts: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -13,6 +18,10 @@ function parseArgs(argv: string[]): { premise: string; modes?: InputMode[] } {
       const next = args[++i];
       if (!next) throw new Error('--modes requires a comma-separated list');
       modes = next.split(',').map((s) => s.trim()) as InputMode[];
+    } else if (a === '--concept-prompt') {
+      const next = args[++i];
+      if (!next) throw new Error('--concept-prompt requires a value');
+      conceptPrompt = next;
     } else if (a === '--help' || a === '-h') {
       printUsageAndExit(0);
     } else {
@@ -21,7 +30,7 @@ function parseArgs(argv: string[]): { premise: string; modes?: InputMode[] } {
   }
   const premise = premiseParts.join(' ').trim();
   if (!premise) printUsageAndExit(1);
-  return { premise, modes };
+  return { premise, modes, conceptPrompt };
 }
 
 function printUsageAndExit(code: number): never {
@@ -34,14 +43,14 @@ function printUsageAndExit(code: number): never {
   process.exit(code);
 }
 
-const { premise, modes } = parseArgs(process.argv);
+const { premise, modes, conceptPrompt } = parseArgs(process.argv);
 const slug = newSlug(premise);
 
 if (process.env.GITHUB_OUTPUT) {
   await appendFile(process.env.GITHUB_OUTPUT, `slug=${slug}\n`);
 }
 
-runOrchestrator({ premise, slug, inputModes: modes }).then(
+runOrchestrator({ premise, slug, inputModes: modes, conceptPrompt }).then(
   async (manifest) => {
     process.stdout.write(
       `\nDone: ${manifest.slug} (status=${manifest.status})\n` +

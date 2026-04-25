@@ -12,6 +12,11 @@ on:
         required: false
         default: keyboard,touch,gamepad
         type: string
+      concept_prompt:
+        description: Pre-approved concept-art prompt (optional; if set, skips composition step)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -38,6 +43,7 @@ jobs:
       PLAYGEN_DISABLE_PLAYCANVAS_MCP: '1'
       PLAYGEN_PERMISSION_MODE: bypassPermissions
       PLAYWRIGHT_HEADLESS: 'true'
+      PLAYGEN_CONCEPT_PROMPT: ${{ inputs.concept_prompt }}
     steps:
       - uses: actions/checkout@v4
         with:

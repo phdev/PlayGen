@@ -17,6 +17,7 @@ export interface RunOptions {
   slug?: string;
   inputModes?: InputMode[];
   maxFixAttempts?: number;
+  conceptPrompt?: string;
 }
 
 interface SubagentDef {
@@ -31,7 +32,7 @@ const SUBAGENTS: Record<string, SubagentDef> = {
       'Renders a concept image for the premise and writes it into the manifest under .concept.',
     prompt: [
       'You are the concept artist for a PlayCanvas vertical slice.',
-      'Read games/<slug>/manifest.json. Compose a concept-art prompt grounded in manifest.premise — emphasize a single hero shot, clean background, readable silhouettes.',
+      'Read games/<slug>/manifest.json. If manifest.concept.prompt is already set (the player pre-approved it), use that prompt verbatim. Otherwise, compose one grounded in manifest.premise — emphasize a single hero shot, clean background, readable silhouettes.',
       'Run: `npx tsx scripts/gen-image.ts <slug> "<prompt>"`. Parse the JSON it prints to confirm imagePath.',
       'The script writes to games/<slug>/concept.png and updates manifest.concept + status. Verify, then return.',
     ].join(' '),
@@ -87,6 +88,19 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
   const maxFixAttempts = opts.maxFixAttempts ?? 3;
 
   const manifest = await createManifest(opts.premise, opts.slug);
+  const conceptPrompt =
+    opts.conceptPrompt?.trim() || process.env.PLAYGEN_CONCEPT_PROMPT?.trim() || '';
+
+  if (conceptPrompt) {
+    const { updateManifest } = await import('./manifest.js');
+    await updateManifest(manifest.slug, {
+      concept: {
+        prompt: conceptPrompt,
+        model: 'gpt-image-2',
+        imagePath: '',
+      },
+    });
+  }
 
   const orchestratorPrompt = [
     `Build a PlayCanvas vertical slice for the premise: "${opts.premise}".`,
@@ -94,6 +108,9 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
     `Manifest: ${manifestPath(manifest.slug)}`,
     `Game directory: ${gameDir(manifest.slug)}`,
     `Required input modes: ${inputModes.join(', ')}`,
+    conceptPrompt
+      ? `Pre-approved concept prompt: "${conceptPrompt}" (the concept subagent must use it verbatim, not compose a new one).`
+      : '',
     ``,
     `Run the phases in order, delegating each to the matching subagent via the Agent tool:`,
     `  1. concept         — premise -> concept.png + manifest.concept`,
@@ -104,7 +121,9 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
     `  6. on any failed playtest verdict, hand back to scene-assembly. Stop after ${maxFixAttempts} fix attempts.`,
     ``,
     `Read the manifest before each phase, persist updates after. Stop when manifest.status = "complete" or "failed".`,
-  ].join('\n');
+  ]
+    .filter((line) => line !== '')
+    .join('\n');
 
   const mcpServers = isPlayCanvasMcpEnabled()
     ? { [PLAYCANVAS_MCP_SERVER_NAME]: playcanvasMcpServerConfig() }
