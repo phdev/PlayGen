@@ -13,6 +13,7 @@
     "validate-env": "tsx scripts/validate-env.ts",
     "new": "tsx scripts/new-slice.ts",
     "gen:image": "tsx scripts/gen-image.ts",
+    "gen:asset-image": "tsx scripts/gen-asset-image.ts",
     "gen:mesh": "tsx scripts/gen-mesh.ts",
     "upload:asset": "tsx scripts/upload-asset.ts",
     "playtest": "tsx scripts/playtest.ts",

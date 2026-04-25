@@ -17,9 +17,10 @@ const READY_GIVE_UP_MS = 60 * 60_000;
 
 function defaultConceptPrompt(premise: string): string {
   return [
-    'Concept art for a video game vertical slice.',
-    'Single hero shot, clean readable composition, bold silhouettes,',
-    'low-poly aesthetic suitable for a 3D mesh asset pipeline.',
+    'A single composite image arranged as a 3x3 grid of "target screenshots" for a video game vertical slice — like a press kit or pitch sheet.',
+    'Each panel shows a distinct in-game moment: gameplay action, environment establishing shot, character close-up, UI/HUD overlay, mechanic in use, key narrative beat.',
+    'Cinematic but readable; panels stand alone yet together convey the full game vision and feel.',
+    'Include diegetic UI overlays where relevant (objectives, stats, notifications) to convey the loop.',
     `Premise: ${premise}`,
   ].join(' ');
 }
