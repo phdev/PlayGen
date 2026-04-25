@@ -1,4 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ACTIONS_URL,
+  dispatchGenerate,
+  getPat,
+  listRecentRuns,
+  savePat,
+  type RunSummary,
+} from '../lib/github';
 
 const ALL_MODES = ['keyboard', 'touch', 'gamepad'] as const;
 type Mode = (typeof ALL_MODES)[number];
@@ -7,14 +15,18 @@ export function Author() {
   const [premise, setPremise] = useState('');
   const [modes, setModes] = useState<Set<Mode>>(new Set(ALL_MODES));
   const [copied, setCopied] = useState(false);
+  const [pat, setPat] = useState(() => getPat());
+  const [showPat, setShowPat] = useState(false);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState<string | null>(null);
+  const [runs, setRuns] = useState<RunSummary[] | null>(null);
 
   const command = useMemo(() => {
     const safe = premise.replace(/"/g, '\\"');
     const m = Array.from(modes).join(',');
-    const modeFlag = m.length > 0 && m !== 'keyboard,touch,gamepad'
-      ? ` --modes ${m}`
-      : '';
-    return `npm run new -- "${safe || '<your premise>'}"${modeFlag}`;
+    const flag =
+      m.length > 0 && m !== 'keyboard,touch,gamepad' ? ` --modes ${m}` : '';
+    return `npm run new -- "${safe || '<your premise>'}"${flag}`;
   }, [premise, modes]);
 
   function toggle(mode: Mode): void {
@@ -30,6 +42,56 @@ export function Author() {
     await navigator.clipboard.writeText(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function refreshRuns(token: string): Promise<void> {
+    if (!token) {
+      setRuns(null);
+      return;
+    }
+    try {
+      setRuns(await listRecentRuns(token));
+    } catch (err: unknown) {
+      setRuns(null);
+      setCloudStatus(
+        `Couldn't fetch runs: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  useEffect(() => {
+    if (pat) refreshRuns(pat);
+  }, [pat]);
+
+  async function runInCloud(): Promise<void> {
+    if (!premise.trim()) {
+      setCloudStatus('Enter a premise first.');
+      return;
+    }
+    if (!pat) {
+      setCloudStatus('Paste a GitHub PAT first.');
+      return;
+    }
+    savePat(pat);
+    setCloudBusy(true);
+    setCloudStatus('Dispatching workflow…');
+    try {
+      await dispatchGenerate({
+        pat,
+        premise: premise.trim(),
+        modes: Array.from(modes),
+      });
+      setCloudStatus(
+        'Run started. The gallery will update once the workflow finishes (~5–15 min). Use the link below to watch progress.',
+      );
+      setTimeout(() => refreshRuns(pat), 2000);
+    } catch (err: unknown) {
+      setCloudStatus(
+        `Failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } finally {
+      setCloudBusy(false);
+    }
   }
 
   return (
@@ -66,11 +128,67 @@ export function Author() {
       </fieldset>
 
       <div className="run-card">
-        <h2>Run it locally</h2>
+        <h2>Run in the cloud</h2>
         <p className="muted small">
-          The orchestrator runs Node + Playwright + spawns Meshy / OpenAI /
-          PlayCanvas calls — it can't execute in the browser. Clone the repo,
-          set <code>.env</code>, then run:
+          Dispatches the <code>generate.yml</code> workflow on GitHub Actions.
+          Secrets (Anthropic, OpenAI, Meshy, PlayCanvas) live in repo
+          settings; the workflow commits the slice into{' '}
+          <code>webapp/public/slices/&lt;slug&gt;/</code> and Pages
+          auto-redeploys.
+        </p>
+        <div className="pat-row">
+          <input
+            type={showPat ? 'text' : 'password'}
+            value={pat}
+            onChange={(e) => setPat(e.target.value)}
+            placeholder="GitHub PAT (scope: repo or public_repo)"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => setShowPat((s) => !s)}
+            aria-label={showPat ? 'Hide PAT' : 'Show PAT'}
+          >
+            {showPat ? 'Hide' : 'Show'}
+          </button>
+        </div>
+        <div className="cloud-actions">
+          <button
+            className="primary"
+            onClick={runInCloud}
+            disabled={cloudBusy || !premise.trim() || !pat}
+          >
+            {cloudBusy ? 'Dispatching…' : 'Generate in cloud'}
+          </button>
+          <a href={ACTIONS_URL} target="_blank" rel="noreferrer">
+            Watch runs ↗
+          </a>
+        </div>
+        {cloudStatus && <p className="cloud-status">{cloudStatus}</p>}
+        {runs && runs.length > 0 && (
+          <ul className="runs">
+            {runs.map((r) => (
+              <li key={r.id}>
+                <a href={r.htmlUrl} target="_blank" rel="noreferrer">
+                  {r.displayTitle || `Run #${r.id}`}
+                </a>
+                <span className="muted small">
+                  {' · '}
+                  {r.status}
+                  {r.conclusion ? ` · ${r.conclusion}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="run-card">
+        <h2>Or run it locally</h2>
+        <p className="muted small">
+          Clone the repo, fill <code>.env</code>, then:
         </p>
         <pre className="cmd">
           <code>{command}</code>
@@ -86,6 +204,11 @@ export function Author() {
 
       <details className="env-help">
         <summary>What keys do I need?</summary>
+        <p className="muted small">
+          For cloud runs, set these as <strong>repository secrets</strong>{' '}
+          (Settings → Secrets and variables → Actions). For local runs, put
+          them in <code>.env</code>.
+        </p>
         <ul>
           <li>
             <code>ANTHROPIC_API_KEY</code> — orchestrator (Claude Agent SDK)
@@ -98,15 +221,10 @@ export function Author() {
           </li>
           <li>
             <code>PLAYCANVAS_API_KEY</code> +{' '}
-            <code>PLAYCANVAS_PROJECT_ID</code> — asset upload + scene
+            <code>PLAYCANVAS_PROJECT_ID</code> — asset upload (optional;
+            engine-only path doesn't strictly need it)
           </li>
         </ul>
-        <p className="muted small">
-          Optional: <code>PLAYGEN_IMAGE_MODEL</code>,{' '}
-          <code>PLAYCANVAS_MCP_SERVER_PATH</code>,{' '}
-          <code>PLAYWRIGHT_HEADLESS</code>. See{' '}
-          <code>.env.example</code>.
-        </p>
       </details>
     </section>
   );

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { launchHarness } from '../src/harness/runner.js';
 import { runBoot } from '../src/harness/scenarios/boot.js';
 import { runGoldenPath } from '../src/harness/scenarios/golden-path.js';
@@ -48,17 +49,18 @@ async function main(): Promise<void> {
   }
 
   const manifest = await loadManifest(slug);
-  const url = manifest.playcanvas?.publishedUrl;
+  let url = manifest.playcanvas?.publishedUrl;
+  let preview: { url: string; close: () => Promise<void> } | null = null;
   if (!url) {
-    throw new Error(
-      `manifest.playcanvas.publishedUrl is not set for slug=${slug}`,
-    );
+    preview = await startPreview(slug);
+    url = preview.url;
   }
   const modes: InputMode[] =
     manifest.plan?.inputModes ?? ['keyboard', 'touch', 'gamepad'];
   const screenshotDir = path.join(gameDir(slug), 'screenshots');
   const runs: PlaytestRun[] = [];
 
+  try {
   for (const mode of modes) {
     const session = await launchHarness({
       url,
@@ -100,6 +102,54 @@ async function main(): Promise<void> {
     JSON.stringify({ overall, runs }, null, 2) + '\n',
   );
   process.exit(overall === 'pass' ? 0 : 1);
+  } finally {
+    if (preview) await preview.close();
+  }
+}
+
+async function startPreview(slug: string): Promise<{
+  url: string;
+  close: () => Promise<void>;
+}> {
+  const buildDir = path.join(gameDir(slug), 'build');
+  const cp = spawn('npm', ['run', 'preview'], {
+    cwd: buildDir,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  if (!cp.stdout) throw new Error('vite preview: no stdout');
+
+  const url = await new Promise<string>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error('vite preview start timeout')),
+      30_000,
+    );
+    const onData = (chunk: Buffer): void => {
+      const m = chunk.toString().match(/Local:\s+(http:\S+)/);
+      if (m) {
+        clearTimeout(timer);
+        cp.stdout.off('data', onData);
+        resolve(m[1]!.replace(/\/$/, '') + '/');
+      }
+    };
+    cp.stdout.on('data', onData);
+    cp.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    cp.on('exit', (code) => {
+      clearTimeout(timer);
+      reject(new Error(`vite preview exited ${code} before reporting URL`));
+    });
+  });
+
+  return {
+    url,
+    close: async () => {
+      cp.kill('SIGTERM');
+      await new Promise((r) => setTimeout(r, 500));
+      if (!cp.killed) cp.kill('SIGKILL');
+    },
+  };
 }
 
 main().catch((err: unknown) => {

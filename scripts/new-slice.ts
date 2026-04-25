@@ -1,4 +1,6 @@
+import { appendFile } from 'node:fs/promises';
 import { runOrchestrator } from '../src/orchestrator/index.js';
+import { newSlug } from '../src/orchestrator/manifest.js';
 import type { InputMode } from '../src/types/manifest.js';
 
 function parseArgs(argv: string[]): { premise: string; modes?: InputMode[] } {
@@ -33,16 +35,29 @@ function printUsageAndExit(code: number): never {
 }
 
 const { premise, modes } = parseArgs(process.argv);
+const slug = newSlug(premise);
 
-runOrchestrator({ premise, inputModes: modes }).then(
-  (manifest) => {
+if (process.env.GITHUB_OUTPUT) {
+  await appendFile(process.env.GITHUB_OUTPUT, `slug=${slug}\n`);
+}
+
+runOrchestrator({ premise, slug, inputModes: modes }).then(
+  async (manifest) => {
     process.stdout.write(
       `\nDone: ${manifest.slug} (status=${manifest.status})\n` +
         `Manifest: games/${manifest.slug}/manifest.json\n`,
     );
+    if (process.env.GITHUB_OUTPUT) {
+      await appendFile(
+        process.env.GITHUB_OUTPUT,
+        `status=${manifest.status}\n`,
+      );
+    }
   },
   (err: unknown) => {
-    process.stderr.write(`\nFailed: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+    process.stderr.write(
+      `\nFailed: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`,
+    );
     process.exit(1);
   },
 );

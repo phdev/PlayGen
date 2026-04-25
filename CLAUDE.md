@@ -68,10 +68,29 @@ games/                      generated slices land here at runtime
 - `scripts/new-slice.ts` — CLI: `npm run new -- "<premise>" [--modes keyboard,touch,gamepad]`
 - `scripts/validate-env.ts`
 
+## Cloud-first run path (default)
+
+The whole pipeline runs on GitHub Actions. The webapp dispatches the workflow; nothing requires the user's laptop to be on.
+
+**Required repo secrets** (Settings → Secrets and variables → Actions):
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `MESHY_API_KEY`, `PLAYCANVAS_API_KEY`, `PLAYCANVAS_PROJECT_ID`. (PlayCanvas is optional for the engine-only path but the workflow exposes it.)
+
+**Flow:**
+1. Webapp Author tab dispatches `.github/workflows/generate.yml` via the GitHub REST API (uses the user's PAT — saved in localStorage, only sent to api.github.com).
+2. Workflow checks out main, installs deps, installs Playwright chromium, runs `npm run new -- "<premise>"` with `PLAYGEN_PERMISSION_MODE=bypassPermissions` and `PLAYGEN_DISABLE_PLAYCANVAS_MCP=1` (the editor MCP needs a real browser + extension, not viable in CI).
+3. `scripts/new-slice.ts` writes the slug to `$GITHUB_OUTPUT` *before* the orchestrator runs, so the next step always has it.
+4. Orchestrator's `scene-assembly` subagent uses the **engine-only path**: clones `templates/basic-platformer` to `games/<slug>/build/`, edits `src/main.ts` per `manifest.plan`, runs `npm install && npm run build`.
+5. `playtest` subagent shells to `scripts/playtest.ts` which auto-spawns `vite preview` from the build dir when `manifest.playcanvas.publishedUrl` is unset, then tears it down.
+6. `scripts/publish-slice.ts` copies `games/<slug>/build/dist/` into `webapp/public/slices/<slug>/`, copies `concept.png` to `slices/<slug>/thumbnail.png`, upserts an entry in `webapp/public/slices.json` with `publishedUrl: 'slices/<slug>/'`.
+7. Workflow commits the new slice + index to main using `GITHUB_TOKEN` (`contents: write`).
+8. Same workflow's `deploy` job (gated on `committed == 'true'`) builds the webapp and deploys to Pages — no separate workflow trigger needed (since `GITHUB_TOKEN` pushes don't fire other workflows).
+
+**Why the engine-only path** instead of the editor MCP path: the MCP server requires a Chrome extension + an open PlayCanvas Editor tab to be useful. CI runners don't have either. The MCP path stays as a configurable option for local dev where someone has the editor open; the CI path bakes a full Vite build into the Pages deploy.
+
 ## Webapp (GitHub Pages author + gallery shell)
 
-- `webapp/` — Vite + React 19 static site. **Cannot run the orchestrator** (Node + Playwright + child-process dependent). Two views:
-  - **Author** (`#/`) — premise textarea + input-mode checkboxes; renders the exact `npm run new` command and a copy button. Includes an "env keys" disclosure listing what `.env` needs.
+- `webapp/` — Vite + React 19 static site. **Cannot run the orchestrator** (Node + Playwright + child-process dependent), but **dispatches it via GitHub Actions**. Three views:
+  - **Author** (`#/`) — premise textarea + input-mode checkboxes; primary "Generate in cloud" button (PAT in `localStorage`, dispatches `generate.yml` via GitHub REST), with a recent-runs list. Secondary "run locally" panel renders the exact `npm run new` command + copy button.
   - **Gallery** (`#/gallery`) — fetches `webapp/public/slices.json`, renders cards. Each card links to `#/slice/<slug>`.
   - **Slice view** (`#/slice/<slug>`) — iframes `manifest.playcanvas.publishedUrl` (with `allow="gamepad *; fullscreen ..."`), exposes verdict buttons and a copy-share-link.
 - `webapp/public/slices.json` — the index the gallery reads. Starts empty.

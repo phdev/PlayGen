@@ -59,13 +59,14 @@ const SUBAGENTS: Record<string, SubagentDef> = {
     tools: ['Read', 'Write', 'Edit', 'Bash'],
   },
   'scene-assembly': {
-    description: 'Builds the PlayCanvas scene via the editor MCP server.',
+    description: 'Builds a runnable PlayCanvas slice into games/<slug>/build/.',
     prompt: [
-      'You are the scene builder.',
-      'For binary asset uploads (GLBs, textures, .ply splats, .voxel.json collision), shell to: `npx tsx scripts/upload-asset.ts <slug> <assetId>` — the editor MCP server cannot push binaries directly.',
-      'For scene structure, use the playcanvas MCP tools: create_entities, add_components, add_script_component_script, set_script_text, instantiate_template_assets, modify_scene_settings.',
-      'Every generated game MUST initialize window.__playgen via src/types/playgen.ts and emit progress/win/lose events.',
-      'Set manifest.playcanvas = { projectId, sceneId, publishedUrl }. Status -> "playtest".',
+      'You are the scene builder. Engine-only path (works in CI, no editor required):',
+      'Step 1 — Clone the template: `cp -R templates/basic-platformer games/<slug>/build`.',
+      'Step 2 — Edit games/<slug>/build/src/main.ts per manifest.plan: swap the placeholder primitives for the GLB assets in games/<slug>/assets/, wire controls per manifest.plan.controls, tune mechanics, set win/lose conditions. Every generated game MUST keep the window.__playgen contract intact (initPlayGen, setReady, setPlaying, emit, tick, reportError).',
+      'Step 3 — Build: `cd games/<slug>/build && npm install --no-audit --no-fund && npm run build`. The resulting dist/ is what the harness and Pages serve.',
+      'Step 4 — Set manifest.status = "playtest". Leave manifest.playcanvas.publishedUrl unset; playtest will spawn a local preview server, and publish-slice will set the final hosted URL.',
+      'Optional cloud path: when manifest demands cloud-hosted publishing, also run `npx tsx scripts/upload-asset.ts <slug> <assetId>` per asset to push GLBs to the PlayCanvas project — the editor MCP server cannot push binaries directly.',
     ].join(' '),
   },
   playtest: {
@@ -108,6 +109,11 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
   const mcpServers = isPlayCanvasMcpEnabled()
     ? { [PLAYCANVAS_MCP_SERVER_NAME]: playcanvasMcpServerConfig() }
     : undefined;
+  const permissionMode = (process.env.PLAYGEN_PERMISSION_MODE ?? 'acceptEdits') as
+    | 'default'
+    | 'acceptEdits'
+    | 'bypassPermissions'
+    | 'plan';
 
   for await (const message of query({
     prompt: orchestratorPrompt,
@@ -122,7 +128,7 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
         'Agent',
       ],
       agents: SUBAGENTS,
-      permissionMode: 'acceptEdits',
+      permissionMode,
       ...(mcpServers ? { mcpServers } : {}),
     },
   })) {
