@@ -16,7 +16,7 @@ const READY_POLL_MS = 15_000;
 const READY_GIVE_UP_MS = 60 * 60_000;
 
 const DEFAULT_PREMISE =
-  'screenshots from a AAA video game themed around <your premise>, cinematic photorealistic, 3x3 grid with diegetic HUD overlays';
+  'screenshots from a AAA video game themed around scaling SpaceX from going to the earth to Mars, use mechanics from Kerbal Space Program, cinematic photorealistic, 3x3 grid';
 
 export function Author() {
   const [premise, setPremise] = useState(DEFAULT_PREMISE);
