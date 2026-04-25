@@ -1,6 +1,8 @@
 node_modules/
 templates/*/node_modules/
 templates/*/dist/
+webapp/node_modules/
+webapp/dist/
 dist/
 .env
 .env.local

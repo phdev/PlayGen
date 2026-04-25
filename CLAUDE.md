@@ -68,15 +68,26 @@ games/                      generated slices land here at runtime
 - `scripts/new-slice.ts` — CLI: `npm run new -- "<premise>" [--modes keyboard,touch,gamepad]`
 - `scripts/validate-env.ts`
 
-## What's next (in build order)
+## Webapp (GitHub Pages author + gallery shell)
 
-The five originally-planned stages have all landed. Likely next-steps when wiring this up for real:
+- `webapp/` — Vite + React 19 static site. **Cannot run the orchestrator** (Node + Playwright + child-process dependent). Two views:
+  - **Author** (`#/`) — premise textarea + input-mode checkboxes; renders the exact `npm run new` command and a copy button. Includes an "env keys" disclosure listing what `.env` needs.
+  - **Gallery** (`#/gallery`) — fetches `webapp/public/slices.json`, renders cards. Each card links to `#/slice/<slug>`.
+  - **Slice view** (`#/slice/<slug>`) — iframes `manifest.playcanvas.publishedUrl` (with `allow="gamepad *; fullscreen ..."`), exposes verdict buttons and a copy-share-link.
+- `webapp/public/slices.json` — the index the gallery reads. Starts empty.
+- `scripts/publish-slice.ts` — `npm run publish:slice -- <slug>`. Reads `games/<slug>/manifest.json`, upserts an entry into `webapp/public/slices.json`. Run after a successful generation to expose it in the gallery.
+- `.github/workflows/deploy-pages.yml` — on push to `main` (paths `webapp/**`) or `workflow_dispatch`: builds `webapp/` and deploys to GitHub Pages via the official `actions/deploy-pages@v4`.
+- `vite.config.ts` ships `base: '/PlayGen/'` (override with `VITE_BASE`). For Pages, **enable in repo settings: Pages > Source = "GitHub Actions"**.
+- Root `package.json` adds `webapp:dev` / `webapp:build` / `webapp:typecheck` / `publish:slice`.
+
+## What's next (when wiring up for real)
 
 1. End-to-end smoke test: `cp -R templates/basic-platformer games/test-slice/build && cd games/test-slice/build && npm install && npm run preview`, then point `scripts/playtest.ts` at `http://localhost:4173`.
 2. `scripts/serve-build.ts` — wraps the per-slice `vite preview` lifecycle so the `playtest` script can start it implicitly when `manifest.playcanvas.publishedUrl` is missing.
-3. Wire the planner subagent's prompt to actually emit a valid `manifest.plan` shape (currently it is told to but no schema validation enforces it).
-4. Consider hoisting `src/types/playgen.ts` + the instrumentation helpers into a shared `packages/contract/` so templates can import instead of duplicating.
-5. Editor MCP path: when the cloud editor is the publish target, scene-assembly stops copying templates and instead drives the MCP server to build scenes directly.
+3. Wire the planner subagent's prompt to actually emit a valid `manifest.plan` shape (currently it's told to but no schema validation enforces it).
+4. Hoist `src/types/playgen.ts` + the instrumentation helpers into a shared `packages/contract/` so templates and webapp can import it instead of duplicating.
+5. Editor MCP path: when the cloud editor is the publish target, scene-assembly stops copying templates and drives the MCP server directly.
+6. (Webapp) "Run via GitHub Actions" button — `workflow_dispatch` against a `generate.yml` workflow with the premise as input. Requires the user to authenticate; out of scope for v1 but a natural fit for the Author tab.
 
 ## Out of scope for v1
 
