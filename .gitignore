@@ -3,6 +3,9 @@ templates/*/node_modules/
 templates/*/dist/
 webapp/node_modules/
 webapp/dist/
+worker/node_modules/
+worker/.wrangler/
+worker/dist/
 dist/
 .env
 .env.local

@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ACTIONS_URL,
   dispatchGenerate,
-  getPat,
+  isDispatchConfigured,
   listRecentRuns,
-  savePat,
   type RunSummary,
 } from '../lib/github';
 
@@ -15,11 +14,10 @@ export function Author() {
   const [premise, setPremise] = useState('');
   const [modes, setModes] = useState<Set<Mode>>(new Set(ALL_MODES));
   const [copied, setCopied] = useState(false);
-  const [pat, setPat] = useState(() => getPat());
-  const [showPat, setShowPat] = useState(false);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<string | null>(null);
   const [runs, setRuns] = useState<RunSummary[] | null>(null);
+  const cloudReady = isDispatchConfigured();
 
   const command = useMemo(() => {
     const safe = premise.replace(/"/g, '\\"');
@@ -44,47 +42,35 @@ export function Author() {
     setTimeout(() => setCopied(false), 1500);
   }
 
-  async function refreshRuns(token: string): Promise<void> {
-    if (!token) {
-      setRuns(null);
-      return;
-    }
+  async function refreshRuns(): Promise<void> {
+    if (!cloudReady) return;
     try {
-      setRuns(await listRecentRuns(token));
-    } catch (err: unknown) {
+      setRuns(await listRecentRuns());
+    } catch {
       setRuns(null);
-      setCloudStatus(
-        `Couldn't fetch runs: ${err instanceof Error ? err.message : String(err)}`,
-      );
     }
   }
 
   useEffect(() => {
-    if (pat) refreshRuns(pat);
-  }, [pat]);
+    if (cloudReady) refreshRuns();
+  }, [cloudReady]);
 
   async function runInCloud(): Promise<void> {
     if (!premise.trim()) {
       setCloudStatus('Enter a premise first.');
       return;
     }
-    if (!pat) {
-      setCloudStatus('Paste a GitHub PAT first.');
-      return;
-    }
-    savePat(pat);
     setCloudBusy(true);
     setCloudStatus('Dispatching workflow…');
     try {
       await dispatchGenerate({
-        pat,
         premise: premise.trim(),
         modes: Array.from(modes),
       });
       setCloudStatus(
         'Run started. The gallery will update once the workflow finishes (~5–15 min). Use the link below to watch progress.',
       );
-      setTimeout(() => refreshRuns(pat), 2000);
+      setTimeout(refreshRuns, 2000);
     } catch (err: unknown) {
       setCloudStatus(
         `Failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -127,105 +113,57 @@ export function Author() {
         ))}
       </fieldset>
 
-      <div className="run-card">
-        <h2>Run in the cloud</h2>
-        <p className="muted small">
-          Dispatches the <code>generate.yml</code> workflow on GitHub Actions.
-          Secrets (Anthropic, OpenAI, Meshy, PlayCanvas) live in repo
-          settings; the workflow commits the slice into{' '}
-          <code>webapp/public/slices/&lt;slug&gt;/</code> and Pages
-          auto-redeploys.
-        </p>
-        <div className="pat-row">
-          <input
-            type={showPat ? 'text' : 'password'}
-            value={pat}
-            onChange={(e) => setPat(e.target.value)}
-            placeholder="GitHub PAT (scope: repo or public_repo)"
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => setShowPat((s) => !s)}
-            aria-label={showPat ? 'Hide PAT' : 'Show PAT'}
-          >
-            {showPat ? 'Hide' : 'Show'}
-          </button>
+      {cloudReady ? (
+        <div className="run-card">
+          <div className="cloud-actions">
+            <button
+              className="primary"
+              onClick={runInCloud}
+              disabled={cloudBusy || !premise.trim()}
+            >
+              {cloudBusy ? 'Dispatching…' : 'Generate'}
+            </button>
+            <a href={ACTIONS_URL} target="_blank" rel="noreferrer">
+              Watch runs ↗
+            </a>
+          </div>
+          {cloudStatus && <p className="cloud-status">{cloudStatus}</p>}
+          {runs && runs.length > 0 && (
+            <ul className="runs">
+              {runs.map((r) => (
+                <li key={r.id}>
+                  <a href={r.htmlUrl} target="_blank" rel="noreferrer">
+                    {r.displayTitle || `Run #${r.id}`}
+                  </a>
+                  <span className="muted small">
+                    {' · '}
+                    {r.status}
+                    {r.conclusion ? ` · ${r.conclusion}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <div className="cloud-actions">
-          <button
-            className="primary"
-            onClick={runInCloud}
-            disabled={cloudBusy || !premise.trim() || !pat}
-          >
-            {cloudBusy ? 'Dispatching…' : 'Generate in cloud'}
-          </button>
-          <a href={ACTIONS_URL} target="_blank" rel="noreferrer">
-            Watch runs ↗
-          </a>
+      ) : (
+        <div className="run-card">
+          <h2>Cloud generation isn't wired up here</h2>
+          <p className="muted small">
+            The dispatch endpoint isn't configured for this deployment. You
+            can still run it locally:
+          </p>
+          <pre className="cmd">
+            <code>{command}</code>
+            <button
+              className="copy"
+              onClick={copy}
+              disabled={!premise.trim()}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </pre>
         </div>
-        {cloudStatus && <p className="cloud-status">{cloudStatus}</p>}
-        {runs && runs.length > 0 && (
-          <ul className="runs">
-            {runs.map((r) => (
-              <li key={r.id}>
-                <a href={r.htmlUrl} target="_blank" rel="noreferrer">
-                  {r.displayTitle || `Run #${r.id}`}
-                </a>
-                <span className="muted small">
-                  {' · '}
-                  {r.status}
-                  {r.conclusion ? ` · ${r.conclusion}` : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="run-card">
-        <h2>Or run it locally</h2>
-        <p className="muted small">
-          Clone the repo, fill <code>.env</code>, then:
-        </p>
-        <pre className="cmd">
-          <code>{command}</code>
-          <button
-            className="copy"
-            onClick={copy}
-            disabled={!premise.trim()}
-          >
-            {copied ? 'Copied' : 'Copy'}
-          </button>
-        </pre>
-      </div>
-
-      <details className="env-help">
-        <summary>What keys do I need?</summary>
-        <p className="muted small">
-          For cloud runs, set these as <strong>repository secrets</strong>{' '}
-          (Settings → Secrets and variables → Actions). For local runs, put
-          them in <code>.env</code>.
-        </p>
-        <ul>
-          <li>
-            <code>ANTHROPIC_API_KEY</code> — orchestrator (Claude Agent SDK)
-          </li>
-          <li>
-            <code>OPENAI_API_KEY</code> — concept image (gpt-image-2)
-          </li>
-          <li>
-            <code>MESHY_API_KEY</code> — image-to-rigged-glTF
-          </li>
-          <li>
-            <code>PLAYCANVAS_API_KEY</code> +{' '}
-            <code>PLAYCANVAS_PROJECT_ID</code> — asset upload (optional;
-            engine-only path doesn't strictly need it)
-          </li>
-        </ul>
-      </details>
+      )}
     </section>
   );
 }

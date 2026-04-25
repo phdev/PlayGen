@@ -1,0 +1,11 @@
+name = "playgen-dispatch"
+main = "src/index.ts"
+compatibility_date = "2026-04-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://phdev.github.io,http://localhost:5174"
+GITHUB_REPO = "phdev/PlayGen"
+GITHUB_WORKFLOW = "generate.yml"
+
+# GH_DISPATCH_PAT is set as a secret:
+#   wrangler secret put GH_DISPATCH_PAT

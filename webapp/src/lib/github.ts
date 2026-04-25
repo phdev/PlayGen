@@ -1,46 +1,45 @@
-export const REPO = 'phdev/PlayGen';
-export const WORKFLOW = 'generate.yml';
+const REPO = 'phdev/PlayGen';
+const WORKFLOW = 'generate.yml';
+
 export const ACTIONS_URL = `https://github.com/${REPO}/actions/workflows/${WORKFLOW}`;
 
-const PAT_KEY = 'playgen.gh_pat';
+const DISPATCH_BASE = (
+  import.meta.env.VITE_DISPATCH_URL as string | undefined
+)?.replace(/\/$/, '');
 
-export function getPat(): string {
-  return localStorage.getItem(PAT_KEY) ?? '';
-}
-
-export function savePat(pat: string): void {
-  if (pat) localStorage.setItem(PAT_KEY, pat);
-  else localStorage.removeItem(PAT_KEY);
+export function isDispatchConfigured(): boolean {
+  return Boolean(DISPATCH_BASE);
 }
 
 export interface DispatchOptions {
-  pat: string;
   premise: string;
   modes: string[];
 }
 
 export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
-  const res = await fetch(
-    `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/dispatches`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${opts.pat}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-      body: JSON.stringify({
-        ref: 'main',
-        inputs: {
-          premise: opts.premise,
-          modes: opts.modes.join(','),
-        },
-      }),
-    },
-  );
+  if (!DISPATCH_BASE) {
+    throw new Error(
+      'Cloud generation is not configured (VITE_DISPATCH_URL is unset).',
+    );
+  }
+  const res = await fetch(`${DISPATCH_BASE}/dispatch`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      premise: opts.premise,
+      modes: opts.modes.join(','),
+    }),
+  });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`GitHub dispatch ${res.status}: ${text}`);
+    const j = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      detail?: string;
+    };
+    throw new Error(
+      j.error
+        ? `${j.error}${j.detail ? `: ${j.detail}` : ''}`
+        : `dispatch failed ${res.status}`,
+    );
   }
 }
 
@@ -53,33 +52,10 @@ export interface RunSummary {
   displayTitle: string;
 }
 
-export async function listRecentRuns(pat: string): Promise<RunSummary[]> {
-  const res = await fetch(
-    `https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/runs?per_page=5`,
-    {
-      headers: {
-        Authorization: `Bearer ${pat}`,
-        Accept: 'application/vnd.github+json',
-      },
-    },
-  );
-  if (!res.ok) throw new Error(`GitHub runs ${res.status}`);
-  const json = (await res.json()) as {
-    workflow_runs: Array<{
-      id: number;
-      status: string;
-      conclusion: string | null;
-      html_url: string;
-      created_at: string;
-      display_title: string;
-    }>;
-  };
-  return json.workflow_runs.map((r) => ({
-    id: r.id,
-    status: r.status,
-    conclusion: r.conclusion,
-    htmlUrl: r.html_url,
-    createdAt: r.created_at,
-    displayTitle: r.display_title,
-  }));
+export async function listRecentRuns(): Promise<RunSummary[]> {
+  if (!DISPATCH_BASE) return [];
+  const res = await fetch(`${DISPATCH_BASE}/runs`);
+  if (!res.ok) throw new Error(`runs ${res.status}`);
+  const j = (await res.json()) as { runs?: RunSummary[] };
+  return j.runs ?? [];
 }

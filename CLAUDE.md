@@ -68,6 +68,27 @@ games/                      generated slices land here at runtime
 - `scripts/new-slice.ts` — CLI: `npm run new -- "<premise>" [--modes keyboard,touch,gamepad]`
 - `scripts/validate-env.ts`
 
+## Cloudflare Worker (dispatch proxy)
+
+The webapp doesn't ask visitors for a PAT — it can't, because the static site is public and a credential in localStorage would still be exposed. Instead, the webapp calls a tiny Cloudflare Worker (`worker/`) that holds the GitHub PAT as a Workers secret. The Worker accepts only allowed Origins, validates the request, and dispatches the workflow.
+
+Endpoints:
+- `POST /dispatch` — `{premise, modes}` → triggers `generate.yml`
+- `GET /runs` — recent run summaries
+
+**Required secrets** (repo settings, used by `.github/workflows/deploy-worker.yml`):
+- `CLOUDFLARE_API_TOKEN` — from Cloudflare dashboard, "Edit Cloudflare Workers" template
+- `GH_DISPATCH_PAT` — GitHub PAT with `workflow` scope (and `repo` scope if private). The worker calls GitHub on behalf of the visitor.
+
+**Wiring the webapp to the worker:**
+After the worker deploys, get its URL (e.g. `https://playgen-dispatch.<sub>.workers.dev`) and set it as a repo *variable* (not secret):
+```
+gh variable set VITE_DISPATCH_URL --body 'https://playgen-dispatch.<sub>.workers.dev'
+```
+Both `deploy-pages.yml` and `generate.yml` pass it to `vite build` so the webapp baked into the Pages deploy knows where to dispatch.
+
+If `VITE_DISPATCH_URL` is unset, the webapp falls back to showing the local-run command (no PAT input is ever surfaced).
+
 ## Cloud-first run path (default)
 
 The whole pipeline runs on GitHub Actions. The webapp dispatches the workflow; nothing requires the user's laptop to be on.

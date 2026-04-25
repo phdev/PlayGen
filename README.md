@@ -6,10 +6,26 @@ Live: https://phdev.github.io/PlayGen/
 
 ## Cloud usage
 
-1. Set repo secrets (Settings → Secrets and variables → Actions): `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `MESHY_API_KEY`, `PLAYCANVAS_API_KEY`, `PLAYCANVAS_PROJECT_ID`.
-2. Open the webapp, paste a GitHub PAT (scope `repo` for private repos, `public_repo` for public), type a premise, click **Generate in cloud**.
-3. The `generate.yml` workflow runs the orchestrator, builds the slice, commits it under `webapp/public/slices/<slug>/`, and re-deploys Pages. Total time ~5–15 min.
-4. Gallery refreshes automatically once the workflow finishes.
+End-state UX: visitor types a premise on the webapp, clicks **Generate**, slice appears in the gallery ~5–15 min later. No PAT input, no key paste.
+
+**One-time setup (repo owner):**
+
+1. **Generation secrets** — Settings → Secrets and variables → Actions:
+   - `ANTHROPIC_API_KEY`
+   - `OPENAI_API_KEY`
+   - `MESHY_API_KEY`
+   - `PLAYCANVAS_API_KEY`, `PLAYCANVAS_PROJECT_ID` (optional — engine-only path doesn't need them)
+2. **Dispatch worker secrets** (so the webapp can trigger generation without exposing a PAT):
+   - `CLOUDFLARE_API_TOKEN` — from Cloudflare dashboard, "Edit Cloudflare Workers" template (free)
+   - `GH_DISPATCH_PAT` — a GitHub PAT with `workflow` scope (+ `repo` if private)
+3. Push `worker/**` (or run `Deploy worker` workflow manually). It deploys to `https://playgen-dispatch.<sub>.workers.dev` and writes `GH_DISPATCH_PAT` as a Worker secret. Copy the URL from the run logs.
+4. **Wire webapp to worker** — set the URL as a repo *variable*:
+   ```
+   gh variable set VITE_DISPATCH_URL --body 'https://playgen-dispatch.<sub>.workers.dev'
+   ```
+5. Trigger `Deploy webapp to GitHub Pages` (push or workflow_dispatch) to redeploy with the URL baked in.
+
+After that, anyone with the webapp URL can generate. Visitors never touch any keys.
 
 ## Local usage (optional)
 

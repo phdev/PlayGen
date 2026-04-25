@@ -88,6 +88,8 @@ jobs:
         working-directory: webapp
       - run: npm run build
         working-directory: webapp
+        env:
+          VITE_DISPATCH_URL: ${{ vars.VITE_DISPATCH_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: webapp/dist
