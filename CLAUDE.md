@@ -52,6 +52,11 @@ games/                      generated slices land here at runtime
 - `src/tools/playcanvas-mcp.ts` — `playcanvasMcpServerConfig()` for the Agent SDK's `mcpServers` option. Defaults to `npx -y @playcanvas/editor-mcp-server`; override via `PLAYCANVAS_MCP_SERVER_PATH` to point at a local clone. Disable entirely with `PLAYGEN_DISABLE_PLAYCANVAS_MCP=1`.
 - `scripts/upload-asset.ts` — CLI: `npm run upload:asset -- <slug> <assetId>`. The `scene-assembly` subagent shells to this for GLBs/splats/voxel collision.
 - Orchestrator now wires the PlayCanvas MCP into the Agent SDK via `mcpServers`. The `scene-assembly` subagent omits its `tools` allowlist so the inherited MCP tools (create_entities, add_components, set_script_text, etc.) are available to it.
+- `src/harness/runner.ts` — `launchHarness()`, `snapshot()`, `readPlayGenState()`, `waitForReady()`. Chromium with `channel: 'chromium'` + GPU flags, mobile viewport + `hasTouch` + `isMobile` for touch mode, gamepad shim installed for gamepad mode.
+- `src/harness/inputs/{keyboard,mouse,touch}.ts` — `tapKey`/`holdKey`/`chord`; `click`/`moveTo`/`dragFromTo`; `tap`/`swipe`/`longPress` (touch swipe via CDP `Input.dispatchTouchEvent`).
+- `src/harness/judge.ts` — `judge(session, label, criteria)` reads `window.__playgen`, captures a screenshot, returns `{verdict, reason, finalState, screenshotPath}`. Supports `requireReady`, `requireProgress`, `expectEvent`, `minScore`, `forbidErrors`.
+- `src/harness/scenarios/{boot,golden-path}.ts` — `runBoot(session)` waits for `__playgen.ready`; `runGoldenPath(session, {controls})` drives random inputs from the per-mode control bindings for ~15s and looks for win/lose events.
+- `scripts/playtest.ts` — `npm run playtest -- <slug>`. Iterates `manifest.plan.inputModes`, runs boot + golden-path per mode, appends PlaytestRuns to `manifest.playtests`, transitions status to `complete` or `fixing`. Exits 0/1 on overall verdict.
 - `src/harness/instrumentation.ts` — `initPlayGen`, `emit`, `setReady`, `setPlaying`, `tick`, `reportError`
 - `src/harness/inputs/gamepad.ts` — `installVirtualGamepad`, `pressButton`/`releaseButton`/`setAxis`/`tap` with standard-mapping constants
 - `scripts/new-slice.ts` — CLI: `npm run new -- "<premise>" [--modes keyboard,touch,gamepad]`
@@ -59,9 +64,7 @@ games/                      generated slices land here at runtime
 
 ## What's next (in build order)
 
-1. `src/tools/{playcanvas-mcp,playcanvas-rest}.ts` — MCP client config + REST multipart upload (fills the binary-asset-upload gap the editor MCP server doesn't cover)
-2. `src/harness/runner.ts` + `inputs/{keyboard,mouse,touch}.ts` + `scenarios/{boot,golden-path,input-parity}.ts` + `judge.ts`
-3. `templates/basic-platformer/` — first PlayCanvas skeleton with `__playgen` wired in
+1. `templates/basic-platformer/` — first PlayCanvas project skeleton with `__playgen` wired in (the OpenGame Template Skill lift). The `planner` subagent picks from this directory; `scene-assembly` clones a template before editing.
 
 ## Out of scope for v1
 

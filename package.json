@@ -15,6 +15,7 @@
     "gen:image": "tsx scripts/gen-image.ts",
     "gen:mesh": "tsx scripts/gen-mesh.ts",
     "upload:asset": "tsx scripts/upload-asset.ts",
+    "playtest": "tsx scripts/playtest.ts",
     "splat:voxel": "splat-transform"
   },
   "dependencies": {

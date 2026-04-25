@@ -73,11 +73,10 @@ const SUBAGENTS: Record<string, SubagentDef> = {
       'Drives the Playwright harness across configured input modes and records verdicts.',
     prompt: [
       'You are the playtester.',
-      'For each input mode in manifest.plan.inputModes, run the harness scenarios (boot, golden-path, input-parity).',
-      'Append a PlaytestRun to manifest.playtests for each scenario+mode pair, with verdict, finalState (PlayGenState snapshot), and screenshot paths.',
-      'If any verdict is "fail", summarize the root cause in notes and set status = "fixing"; otherwise status = "complete".',
+      'Run: `npx tsx scripts/playtest.ts <slug>`. The script iterates manifest.plan.inputModes, runs boot + golden-path per mode, appends PlaytestRuns to manifest.playtests, and transitions status to "complete" or "fixing".',
+      'After the run, read the manifest. If status = "fixing", summarize the failing runs (mode, scenario, notes) for scene-assembly to act on.',
     ].join(' '),
-    tools: ['Read', 'Write', 'Edit', 'Bash'],
+    tools: ['Read', 'Bash'],
   },
 };
 
