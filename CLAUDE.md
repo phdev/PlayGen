@@ -57,6 +57,12 @@ games/                      generated slices land here at runtime
 - `src/harness/judge.ts` — `judge(session, label, criteria)` reads `window.__playgen`, captures a screenshot, returns `{verdict, reason, finalState, screenshotPath}`. Supports `requireReady`, `requireProgress`, `expectEvent`, `minScore`, `forbidErrors`.
 - `src/harness/scenarios/{boot,golden-path}.ts` — `runBoot(session)` waits for `__playgen.ready`; `runGoldenPath(session, {controls})` drives random inputs from the per-mode control bindings for ~15s and looks for win/lose events.
 - `scripts/playtest.ts` — `npm run playtest -- <slug>`. Iterates `manifest.plan.inputModes`, runs boot + golden-path per mode, appends PlaytestRuns to `manifest.playtests`, transitions status to `complete` or `fixing`. Exits 0/1 on overall verdict.
+- `templates/basic-platformer/` — first PlayCanvas project skeleton (Vite + `playcanvas` v2 engine). Ships:
+  - top-down camera, ground, player cube, pickup sphere, goal pad
+  - keyboard (WASD/arrows), gamepad (left stick + dpad, standard mapping), touch (drag-to-move) all wired to the same player entity
+  - full `window.__playgen` contract via a hand-mirrored `src/playgen.ts` (must stay in sync with `src/types/playgen.ts`)
+  - emits `pickup`, `win`, `lose`, `error` events
+  The `scene-assembly` subagent copies this to `games/<slug>/build/` and edits `src/main.ts` to swap primitives for GLBs and tune mechanics per `manifest.plan`.
 - `src/harness/instrumentation.ts` — `initPlayGen`, `emit`, `setReady`, `setPlaying`, `tick`, `reportError`
 - `src/harness/inputs/gamepad.ts` — `installVirtualGamepad`, `pressButton`/`releaseButton`/`setAxis`/`tap` with standard-mapping constants
 - `scripts/new-slice.ts` — CLI: `npm run new -- "<premise>" [--modes keyboard,touch,gamepad]`
@@ -64,7 +70,13 @@ games/                      generated slices land here at runtime
 
 ## What's next (in build order)
 
-1. `templates/basic-platformer/` — first PlayCanvas project skeleton with `__playgen` wired in (the OpenGame Template Skill lift). The `planner` subagent picks from this directory; `scene-assembly` clones a template before editing.
+The five originally-planned stages have all landed. Likely next-steps when wiring this up for real:
+
+1. End-to-end smoke test: `cp -R templates/basic-platformer games/test-slice/build && cd games/test-slice/build && npm install && npm run preview`, then point `scripts/playtest.ts` at `http://localhost:4173`.
+2. `scripts/serve-build.ts` — wraps the per-slice `vite preview` lifecycle so the `playtest` script can start it implicitly when `manifest.playcanvas.publishedUrl` is missing.
+3. Wire the planner subagent's prompt to actually emit a valid `manifest.plan` shape (currently it is told to but no schema validation enforces it).
+4. Consider hoisting `src/types/playgen.ts` + the instrumentation helpers into a shared `packages/contract/` so templates can import instead of duplicating.
+5. Editor MCP path: when the cloud editor is the publish target, scene-assembly stops copying templates and instead drives the MCP server to build scenes directly.
 
 ## Out of scope for v1
 
