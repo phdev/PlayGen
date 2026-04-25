@@ -15,8 +15,11 @@ type Mode = (typeof ALL_MODES)[number];
 const READY_POLL_MS = 15_000;
 const READY_GIVE_UP_MS = 60 * 60_000;
 
+const DEFAULT_PREMISE =
+  'screenshots from a AAA video game themed around <your premise>, cinematic photorealistic, 3x3 grid with diegetic HUD overlays';
+
 export function Author() {
-  const [premise, setPremise] = useState('');
+  const [premise, setPremise] = useState(DEFAULT_PREMISE);
   const [modes, setModes] = useState<Set<Mode>>(new Set(ALL_MODES));
   const [copied, setCopied] = useState(false);
 
@@ -202,7 +205,7 @@ export function Author() {
         <textarea
           value={premise}
           onChange={(e) => setPremise(e.target.value)}
-          placeholder="e.g. tiny-island survival, dawn lighting, low-poly"
+          placeholder="screenshots from a AAA video game themed around <your premise>"
           rows={3}
           disabled={approved}
         />
