@@ -160,7 +160,7 @@ async function concept(
     body: JSON.stringify({
       model: 'gpt-image-2',
       prompt,
-      size: '1536x1024',
+      size: '1024x1024',
       quality: 'low',
       n: 1,
     }),
