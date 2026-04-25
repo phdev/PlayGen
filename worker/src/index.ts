@@ -163,6 +163,7 @@ async function concept(
       size: '1024x1024',
       quality: 'low',
       n: 1,
+      response_format: 'url',
     }),
   });
 
@@ -179,10 +180,22 @@ async function concept(
     data?: Array<{ b64_json?: string; url?: string }>;
   };
   const item = json.data?.[0];
-  if (!item?.b64_json) {
+  if (!item) {
     return jsonResponse(502, { error: 'no image returned' }, cors);
   }
 
+  if (item.url) {
+    return jsonResponse(
+      200,
+      { imageUrl: item.url, prompt, model: 'gpt-image-2' },
+      { ...cors, 'cache-control': 'no-store' },
+    );
+  }
+
+  // Fallback: model didn't honor response_format='url' and gave us bytes.
+  if (!item.b64_json) {
+    return jsonResponse(502, { error: 'no image returned' }, cors);
+  }
   const bytes = Uint8Array.from(atob(item.b64_json), (c) => c.charCodeAt(0));
   return new Response(bytes, {
     status: 200,

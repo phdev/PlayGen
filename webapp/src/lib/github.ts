@@ -73,6 +73,15 @@ export async function generateConcept(prompt: string): Promise<ConceptResult> {
         : `concept failed ${res.status}`,
     );
   }
+  const contentType = res.headers.get('content-type') ?? '';
+  if (contentType.startsWith('application/json')) {
+    const j = (await res.json()) as {
+      imageUrl: string;
+      prompt: string;
+      model: string;
+    };
+    return { imageUrl: j.imageUrl, prompt: j.prompt, model: j.model };
+  }
   const blob = await res.blob();
   const imageUrl = URL.createObjectURL(blob);
   const promptHeader = res.headers.get('x-playgen-prompt');
