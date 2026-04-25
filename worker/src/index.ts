@@ -161,6 +161,7 @@ async function concept(
       model: 'gpt-image-2',
       prompt,
       size: '1024x1024',
+      quality: 'low',
       n: 1,
     }),
   });
@@ -189,7 +190,7 @@ async function concept(
       prompt,
       model: 'gpt-image-2',
     },
-    cors,
+    { ...cors, 'cache-control': 'no-store' },
   );
 }
 
