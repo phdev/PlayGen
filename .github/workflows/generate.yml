@@ -5,7 +5,8 @@ on:
     inputs:
       premise:
         description: Game premise (one sentence)
-        required: true
+        required: false
+        default: ''
         type: string
       modes:
         description: Input modes (comma-separated)
@@ -23,7 +24,17 @@ on:
         default: ''
         type: string
       mechanics:
-        description: Player-confirmed core mechanics (free text; authoritative for the planner)
+        description: Player-confirmed gameplay loop (authoritative for the planner)
+        required: false
+        default: ''
+        type: string
+      phase:
+        description: 'all | plan | build (default all)'
+        required: false
+        default: all
+        type: string
+      slug:
+        description: Existing slug (required when phase=build)
         required: false
         default: ''
         type: string
@@ -56,6 +67,7 @@ jobs:
       PLAYGEN_CONCEPT_PROMPT: ${{ inputs.concept_prompt }}
       PLAYGEN_GENRE: ${{ inputs.genre }}
       PLAYGEN_MECHANICS: ${{ inputs.mechanics }}
+      PLAYGEN_PHASE: ${{ inputs.phase }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,9 +84,19 @@ jobs:
           echo "CLAUDE_CODE_BIN=$(which claude)" >> "$GITHUB_ENV"
       - name: Run orchestrator
         id: run
-        run: npm run new -- "${{ inputs.premise }}" --modes ${{ inputs.modes }}
-      - name: Publish slice into webapp
-        run: npm run publish:slice -- "${{ steps.run.outputs.slug }}"
+        run: |
+          if [ "${{ inputs.phase }}" = "build" ]; then
+            npm run new -- "${{ inputs.premise }}" --modes ${{ inputs.modes }} --phase build --slug "${{ inputs.slug }}"
+          else
+            npm run new -- "${{ inputs.premise }}" --modes ${{ inputs.modes }} --phase "${{ inputs.phase }}"
+          fi
+      - name: Publish artifacts
+        run: |
+          if [ "${{ inputs.phase }}" = "plan" ]; then
+            npm run publish:plan -- "${{ steps.run.outputs.slug }}"
+          else
+            npm run publish:slice -- "${{ steps.run.outputs.slug }}"
+          fi
       - name: Commit artifacts
         id: commit
         run: |

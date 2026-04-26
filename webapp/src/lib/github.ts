@@ -17,6 +17,8 @@ export interface DispatchOptions {
   conceptPrompt?: string;
   genre?: string;
   mechanics?: string;
+  phase?: 'all' | 'plan' | 'build';
+  slug?: string;
 }
 
 export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
@@ -34,6 +36,8 @@ export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
       ...(opts.conceptPrompt ? { conceptPrompt: opts.conceptPrompt } : {}),
       ...(opts.genre ? { genre: opts.genre } : {}),
       ...(opts.mechanics ? { mechanics: opts.mechanics } : {}),
+      ...(opts.phase ? { phase: opts.phase } : {}),
+      ...(opts.slug ? { slug: opts.slug } : {}),
     }),
   });
   if (!res.ok) {

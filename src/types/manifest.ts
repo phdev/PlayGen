@@ -4,6 +4,7 @@ export type ManifestStatus =
   | 'init'
   | 'concept'
   | 'planning'
+  | 'awaiting_plan_approval'
   | 'asset_gen'
   | 'scene_assembly'
   | 'playtest'
@@ -26,6 +27,7 @@ export interface Manifest {
   premise: string;
   designIntent?: DesignIntent;
   concept?: ConceptArtifact;
+  styleGuide?: StyleGuide;
   plan?: VerticalSlicePlan;
   assets: AssetRecord[];
   splats: SplatRecord[];
@@ -34,11 +36,29 @@ export interface Manifest {
   errors: ManifestError[];
 }
 
+export interface ConceptPanel {
+  id: string;
+  path: string;
+  row: number;
+  col: number;
+  role?: string;
+}
+
 export interface ConceptArtifact {
   prompt: string;
   model: string;
   imagePath: string;
   variants?: string[];
+  panels?: ConceptPanel[];
+}
+
+export interface StyleGuide {
+  palette: string[];
+  lighting: string;
+  perspective: string;
+  scale: string;
+  mood: string;
+  era?: string;
 }
 
 export type Template = 'basic-platformer' | 'physics-vehicle';

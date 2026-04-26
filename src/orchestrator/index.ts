@@ -16,6 +16,8 @@ import {
   playcanvasMcpServerConfig,
 } from '../tools/playcanvas-mcp.js';
 
+export type Phase = 'all' | 'plan' | 'build';
+
 export interface RunOptions {
   premise: string;
   slug?: string;
@@ -23,6 +25,7 @@ export interface RunOptions {
   maxFixAttempts?: number;
   conceptPrompt?: string;
   designIntent?: DesignIntent;
+  phase?: Phase;
 }
 
 interface SubagentDef {
@@ -34,12 +37,13 @@ interface SubagentDef {
 const SUBAGENTS: Record<string, SubagentDef> = {
   concept: {
     description:
-      'Renders a concept image for the premise and writes it into the manifest under .concept.',
+      'Renders a concept image, decomposes panels, extracts style guide, writes everything into the manifest.',
     prompt: [
       'You are the concept artist for a PlayCanvas vertical slice.',
       'Read games/<slug>/manifest.json. If manifest.concept.prompt is already set (the player pre-approved it), use that prompt verbatim. Otherwise, compose one grounded in manifest.premise — emphasize a single hero shot, clean background, readable silhouettes.',
-      'Run: `npx tsx scripts/gen-image.ts <slug> "<prompt>"`. Parse the JSON it prints to confirm imagePath.',
-      'The script writes to games/<slug>/concept.png and updates manifest.concept + status. Verify, then return.',
+      'Run: `npx tsx scripts/gen-image.ts <slug> "<prompt>"` — this also extracts and saves manifest.styleGuide via Claude vision.',
+      'Then run: `npx tsx scripts/decompose-concept.ts <slug>` to split the composite into 3x3 panels in games/<slug>/panels/. The planner uses these as concrete scene/asset references.',
+      'Verify both scripts succeeded by reading manifest.concept.panels (should be 9 entries) and manifest.styleGuide (should be populated). Return.',
     ].join(' '),
     tools: ['Read', 'Write', 'Edit', 'Bash'],
   },
@@ -48,8 +52,9 @@ const SUBAGENTS: Record<string, SubagentDef> = {
       'Decomposes the premise + concept into a VerticalSlicePlan and an asset list.',
     prompt: [
       'You are the slice planner.',
-      'STEP 1: Use the Read tool to load games/<slug>/concept.png — the SDK forwards image bytes as multimodal input so you can actually see the panels. Enumerate every visible panel before planning.',
-      'AUTHORITATIVE INPUTS (in priority order): manifest.designIntent (genre + gameplay loop — player-confirmed, non-negotiable), manifest.premise, then the concept image (art-direction only).',
+      'STEP 1: Use the Read tool to load games/<slug>/concept.png AND each panel in games/<slug>/panels/panel-NN.png. The SDK forwards image bytes as multimodal input so you actually see them.',
+      'For each panel, write back manifest.concept.panels[i].role = one of "main-menu","gameplay","environment","character","HUD","cutscene","mechanic","detail" based on what is depicted. Use the panel roles to ground the asset list.',
+      'AUTHORITATIVE INPUTS (in priority order): manifest.designIntent (genre + gameplay loop — player-confirmed, non-negotiable), manifest.premise, manifest.styleGuide (palette + mood + lighting), then the panels.',
       'STEP 2: Pick manifest.plan.template — one of "basic-platformer" or "physics-vehicle". Use "physics-vehicle" for sims, vehicle simulators, rocket/space games, anything KSP-like; use "basic-platformer" for top-down or character-driven action. The chosen template constrains the scaffold scene-assembly will edit.',
       'STEP 3: Translate manifest.designIntent.mechanics (the gameplay loop) into manifest.plan.loopSteps — an ordered array of {name, control}. Every arrow in the loop becomes one step. Step names should be short kebab-case identifiers (e.g. "throttle-up", "pitch-maneuver", "orbit-achieved").',
       'CRITICAL: every loopStep MUST be exercised in the slice. The scene-assembly subagent will wire each step so the game emits emit("progress", { step: "<name>" }) when the player triggers it. The playtest harness verifies all step names fired during a 15s play session.',
@@ -100,8 +105,21 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
   const inputModes: InputMode[] =
     opts.inputModes ?? ['keyboard', 'touch', 'gamepad'];
   const maxFixAttempts = opts.maxFixAttempts ?? 3;
+  const phase: Phase =
+    opts.phase ?? ((process.env.PLAYGEN_PHASE as Phase | undefined) || 'all');
 
-  const manifest = await createManifest(opts.premise, opts.slug);
+  const { updateManifest } = await import('./manifest.js');
+
+  let manifest: Manifest;
+  if (phase === 'build') {
+    if (!opts.slug) {
+      throw new Error('phase="build" requires a slug to resume from');
+    }
+    manifest = await loadManifest(opts.slug);
+  } else {
+    manifest = await createManifest(opts.premise, opts.slug);
+  }
+
   const conceptPrompt =
     opts.conceptPrompt?.trim() || process.env.PLAYGEN_CONCEPT_PROMPT?.trim() || '';
 
@@ -113,8 +131,7 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
       ? { genre: envGenre, mechanics: envMechanics }
       : undefined);
 
-  const { updateManifest } = await import('./manifest.js');
-  if (conceptPrompt || designIntent) {
+  if ((conceptPrompt || designIntent) && phase !== 'build') {
     await updateManifest(manifest.slug, {
       ...(conceptPrompt
         ? {
@@ -129,8 +146,26 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
     });
   }
 
+  const phaseDirective =
+    phase === 'plan'
+      ? [
+          'PHASE: plan-only.',
+          'Run ONLY the concept + planner subagents. After planner emits manifest.plan and AssetRecords, set manifest.status = "awaiting_plan_approval" and STOP. Do NOT run asset-gen, scene-assembly, or playtest — the player will review the plan and dispatch a separate build phase.',
+        ].join(' ')
+      : phase === 'build'
+        ? [
+            'PHASE: build-only (resuming from approved plan).',
+            'manifest.concept and manifest.plan are already populated. SKIP the concept and planner subagents.',
+            'Run asset-gen, then scene-assembly, then playtest. On any failed playtest verdict, hand back to scene-assembly. Stop after ' +
+              String(maxFixAttempts) +
+              ' fix attempts.',
+          ].join(' ')
+        : 'PHASE: all (full pipeline).';
+
   const orchestratorPrompt = [
-    `Build a PlayCanvas vertical slice for the premise: "${opts.premise}".`,
+    `Build a PlayCanvas vertical slice for the premise: "${manifest.premise}".`,
+    ``,
+    phaseDirective,
     ``,
     `Manifest: ${manifestPath(manifest.slug)}`,
     `Game directory: ${gameDir(manifest.slug)}`,
@@ -142,15 +177,15 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
       ? `Player-confirmed design intent (AUTHORITATIVE): genre="${designIntent.genre}", core mechanics="${designIntent.mechanics}". The planner must build manifest.plan around these; the concept image is art-direction only.`
       : '',
     ``,
-    `Run the phases in order, delegating each to the matching subagent via the Agent tool:`,
-    `  1. concept         — premise -> concept.png + manifest.concept`,
+    `Phases:`,
+    `  1. concept         — premise -> concept.png + style guide + 9 panels`,
     `  2. planner         — manifest.plan + AssetRecord list`,
-    `  3. asset-gen       — Meshy jobs in parallel until all assets are status=done`,
-    `  4. scene-assembly  — PlayCanvas scene wired to window.__playgen`,
-    `  5. playtest        — Playwright harness across all input modes`,
-    `  6. on any failed playtest verdict, hand back to scene-assembly. Stop after ${maxFixAttempts} fix attempts.`,
+    `  3. asset-gen       — per-asset hero shot + Meshy in parallel until all done`,
+    `  4. scene-assembly  — clones manifest.plan.template, wires window.__playgen + loopSteps`,
+    `  5. playtest        — Playwright harness across all input modes; verifies loopSteps`,
+    `  6. fix loop        — on failed verdict, hand back to scene-assembly (up to ${maxFixAttempts}x)`,
     ``,
-    `Read the manifest before each phase, persist updates after. Stop when manifest.status = "complete" or "failed".`,
+    `Read the manifest before each phase, persist updates after.`,
   ]
     .filter((line) => line !== '')
     .join('\n');

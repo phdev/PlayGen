@@ -8,6 +8,20 @@ import {
   type RunSummary,
 } from '../lib/github';
 import { fetchSlices, type SliceEntry } from '../lib/slices';
+import { fetchPlan, type PlanManifest } from '../lib/plan';
+
+function makeSlug(premise: string): string {
+  const stub = premise
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  const suffix = crypto.randomUUID().slice(0, 6);
+  return stub ? `${stub}-${suffix}` : `slice-${suffix}`;
+}
+
+const PLAN_POLL_MS = 10_000;
+const PLAN_GIVE_UP_MS = 30 * 60_000;
 
 const ALL_MODES = ['keyboard', 'touch', 'gamepad'] as const;
 type Mode = (typeof ALL_MODES)[number];
@@ -39,6 +53,9 @@ export function Author() {
     baseline: Set<string>;
   } | null>(null);
   const [readySlice, setReadySlice] = useState<SliceEntry | null>(null);
+  const [planSlug, setPlanSlug] = useState<string | null>(null);
+  const [planManifest, setPlanManifest] = useState<PlanManifest | null>(null);
+  const [buildBusy, setBuildBusy] = useState(false);
 
   const cloudReady = isDispatchConfigured();
 
@@ -79,6 +96,35 @@ export function Author() {
   useEffect(() => {
     if (cloudReady) refreshRuns();
   }, [cloudReady]);
+
+  useEffect(() => {
+    if (!planSlug || planManifest) return;
+    const slug = planSlug;
+    const since = Date.now();
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async (): Promise<void> => {
+      if (cancelled) return;
+      try {
+        const p = await fetchPlan(slug);
+        if (p && p.plan && !cancelled) {
+          setPlanManifest(p);
+          return;
+        }
+      } catch {
+        // ignore transient
+      }
+      if (Date.now() - since > PLAN_GIVE_UP_MS) return;
+      if (!cancelled) timer = setTimeout(poll, PLAN_POLL_MS);
+    };
+
+    timer = setTimeout(poll, PLAN_POLL_MS);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [planSlug, planManifest]);
 
   useEffect(() => {
     if (!pending) return;
@@ -169,7 +215,7 @@ export function Author() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function approveAndDispatch(): Promise<void> {
+  async function generatePlan(): Promise<void> {
     if (
       !premise.trim() ||
       !conceptPrompt.trim() ||
@@ -178,11 +224,15 @@ export function Author() {
     ) {
       return;
     }
+    const slug = makeSlug(premise.trim());
     setCloudBusy(true);
-    setCloudStatus('Dispatching workflow…');
+    setCloudStatus('Dispatching plan workflow…');
     setReadySlice(null);
+    setPlanManifest(null);
     try {
       await dispatchGenerate({
+        phase: 'plan',
+        slug,
         premise: premise.trim(),
         modes: Array.from(modes),
         conceptPrompt: conceptPrompt.trim(),
@@ -190,8 +240,33 @@ export function Author() {
         mechanics: mechanics.trim(),
       });
       setApproved(true);
+      setPlanSlug(slug);
       setCloudStatus(
-        'Run started. A "Play it" link will appear here once the slice is ready (~5–15 min).',
+        'Plan generation started (~3–5 min). When the plan lands here, you\'ll review it before any Meshy budget gets spent.',
+      );
+      setTimeout(refreshRuns, 2000);
+    } catch (err: unknown) {
+      setCloudStatus(
+        `Failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  }
+
+  async function approvePlanAndBuild(): Promise<void> {
+    if (!planSlug || !planManifest) return;
+    setBuildBusy(true);
+    setCloudStatus('Dispatching build workflow…');
+    try {
+      await dispatchGenerate({
+        phase: 'build',
+        slug: planSlug,
+        premise: premise.trim(),
+        modes: Array.from(modes),
+      });
+      setCloudStatus(
+        'Build started. A "Play it" link will appear once the slice is ready (~10–20 min).',
       );
       try {
         const baselineSlices = await fetchSlices();
@@ -205,10 +280,10 @@ export function Author() {
       setTimeout(refreshRuns, 2000);
     } catch (err: unknown) {
       setCloudStatus(
-        `Failed: ${err instanceof Error ? err.message : String(err)}`,
+        `Build failed to dispatch: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
-      setCloudBusy(false);
+      setBuildBusy(false);
     }
   }
 
@@ -360,15 +435,16 @@ export function Author() {
 
       {cloudReady && conceptSrc && (
         <div className="run-card">
-          <h2>3. Approve & generate slice</h2>
+          <h2>3. Generate plan</h2>
           <p className="muted small">
-            Concept + genre + mechanics become the inputs to the planner,
-            asset-gen (Meshy), scene-assembly, and playtest subagents.
+            Runs concept + planner subagents only. You'll review the plan
+            (loop steps, controls, asset list) before any Meshy budget is
+            spent.
           </p>
           <div className="cloud-actions">
             <button
               className="primary"
-              onClick={approveAndDispatch}
+              onClick={generatePlan}
               disabled={
                 cloudBusy ||
                 approved ||
@@ -381,14 +457,59 @@ export function Author() {
               {cloudBusy
                 ? 'Dispatching…'
                 : approved
-                  ? 'Dispatched'
-                  : 'Approve & generate'}
+                  ? 'Plan dispatched'
+                  : 'Generate plan'}
             </button>
             <a href={ACTIONS_URL} target="_blank" rel="noreferrer">
               Watch runs ↗
             </a>
           </div>
           {cloudStatus && <p className="cloud-status">{cloudStatus}</p>}
+          {planManifest && planManifest.plan && (
+            <div className="plan-card">
+              <h3>{planManifest.plan.title}</h3>
+              <p className="muted small">
+                {planManifest.plan.oneLineHook}
+              </p>
+              <p className="plan-meta small">
+                Template: <code>{planManifest.plan.template}</code> · Win:{' '}
+                {planManifest.plan.winCondition} · Lose:{' '}
+                {planManifest.plan.loseCondition}
+              </p>
+              <h4>Gameplay loop</h4>
+              <ol className="loop-list">
+                {planManifest.plan.loopSteps.map((s, i) => (
+                  <li key={i}>
+                    <code>{s.name}</code>
+                    {s.control ? (
+                      <span className="muted small"> · {s.control}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+              <h4>Assets ({planManifest.assets.length})</h4>
+              <ul className="asset-list">
+                {planManifest.assets.map((a) => (
+                  <li key={a.id}>
+                    <code>{a.kind}</code> · {a.prompt}
+                  </li>
+                ))}
+              </ul>
+              <div className="cloud-actions">
+                <button
+                  className="primary"
+                  onClick={approvePlanAndBuild}
+                  disabled={buildBusy || Boolean(pending)}
+                >
+                  {buildBusy
+                    ? 'Dispatching…'
+                    : pending
+                      ? 'Build dispatched'
+                      : 'Approve plan & build slice'}
+                </button>
+              </div>
+            </div>
+          )}
           {readySlice && (
             <div className="ready-card">
               <strong>{readySlice.title ?? readySlice.slug}</strong> is ready.

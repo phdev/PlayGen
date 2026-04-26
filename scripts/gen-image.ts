@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { generateConceptImage } from '../src/tools/image-gen.js';
+import { extractStyleGuide } from '../src/tools/style-guide.js';
 import {
   gameDir,
   updateManifest,
@@ -18,6 +19,10 @@ async function main(): Promise<void> {
 
   const result = await generateConceptImage({ prompt, outputPath });
 
+  const styleGuide = await extractStyleGuide(result.imagePath).catch(
+    () => null,
+  );
+
   await updateManifest(slug, (m) => ({
     status: m.status === 'init' ? 'concept' : m.status,
     concept: {
@@ -26,6 +31,7 @@ async function main(): Promise<void> {
       imagePath: 'concept.png',
       variants: result.variantPaths.map((p) => path.basename(p)),
     },
+    ...(styleGuide ? { styleGuide } : {}),
   }));
 
   process.stdout.write(
@@ -34,6 +40,7 @@ async function main(): Promise<void> {
         imagePath: path.relative(gameDir(slug), result.imagePath),
         model: result.model,
         variants: result.variantPaths.map((p) => path.basename(p)),
+        styleGuide: styleGuide ?? null,
       },
       null,
       2,

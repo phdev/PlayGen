@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { generateConceptImage } from '../src/tools/image-gen.js';
+import { styleGuidePromptSuffix } from '../src/tools/style-guide.js';
 import {
   gameDir,
   loadManifest,
@@ -24,11 +25,12 @@ async function main(): Promise<void> {
 
   const dir = gameDir(slug);
   const outputPath = path.join(dir, 'assets', `${assetId}-source.png`);
-  const heroPrompt = [
-    `Single hero shot of: ${asset.prompt}.`,
-    'Centered subject, plain neutral background, bold silhouette, even diffuse lighting, no text, no UI overlays.',
-    'Image-to-3D-friendly: one isolated subject, clean alpha-friendly contrast against the background.',
-  ].join(' ');
+  const heroPrompt =
+    [
+      `Single hero shot of: ${asset.prompt}.`,
+      'Centered subject, plain neutral background, bold silhouette, even diffuse lighting, no text, no UI overlays.',
+      'Image-to-3D-friendly: one isolated subject, clean alpha-friendly contrast against the background.',
+    ].join(' ') + styleGuidePromptSuffix(manifest.styleGuide);
 
   const result = await generateConceptImage({
     prompt: heroPrompt,

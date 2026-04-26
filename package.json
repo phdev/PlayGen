@@ -17,6 +17,8 @@
     "gen:mesh": "tsx scripts/gen-mesh.ts",
     "upload:asset": "tsx scripts/upload-asset.ts",
     "playtest": "tsx scripts/playtest.ts",
+    "decompose:concept": "tsx scripts/decompose-concept.ts",
+    "publish:plan": "tsx scripts/publish-plan.ts",
     "publish:slice": "tsx scripts/publish-slice.ts",
     "webapp:dev": "npm --prefix webapp run dev",
     "webapp:build": "npm --prefix webapp run build",
@@ -28,7 +30,8 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@playcanvas/splat-transform": "^1.10.2",
     "openai": "^6.34.0",
-    "playwright": "^1.59.1"
+    "playwright": "^1.59.1",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -67,6 +67,8 @@ async function dispatch(
     conceptPrompt?: unknown;
     genre?: unknown;
     mechanics?: unknown;
+    phase?: unknown;
+    slug?: unknown;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -88,9 +90,19 @@ async function dispatch(
     typeof body.mechanics === 'string'
       ? body.mechanics.trim().slice(0, 1000)
       : '';
+  const phaseRaw = typeof body.phase === 'string' ? body.phase.trim() : 'all';
+  const phase: 'all' | 'plan' | 'build' = ['all', 'plan', 'build'].includes(
+    phaseRaw,
+  )
+    ? (phaseRaw as 'all' | 'plan' | 'build')
+    : 'all';
+  const slug = typeof body.slug === 'string' ? body.slug.trim().slice(0, 100) : '';
 
-  if (!premise) {
+  if (phase !== 'build' && !premise) {
     return jsonResponse(400, { error: 'premise required' }, cors);
+  }
+  if (phase === 'build' && !slug) {
+    return jsonResponse(400, { error: 'slug required for phase=build' }, cors);
   }
   if (premise.length > MAX_PREMISE_LEN) {
     return jsonResponse(
@@ -107,10 +119,15 @@ async function dispatch(
     );
   }
 
-  const inputs: Record<string, string> = { premise, modes: modesRaw };
+  const inputs: Record<string, string> = {
+    premise,
+    modes: modesRaw,
+    phase,
+  };
   if (conceptPrompt) inputs.concept_prompt = conceptPrompt;
   if (genre) inputs.genre = genre;
   if (mechanics) inputs.mechanics = mechanics;
+  if (slug) inputs.slug = slug;
 
   const res = await fetch(
     `${GITHUB_API}/repos/${env.GITHUB_REPO}/actions/workflows/${env.GITHUB_WORKFLOW}/dispatches`,

@@ -9,12 +9,16 @@ function parseArgs(argv: string[]): {
   conceptPrompt?: string;
   genre?: string;
   mechanics?: string;
+  phase?: 'all' | 'plan' | 'build';
+  slug?: string;
 } {
   const args = argv.slice(2);
   let modes: InputMode[] | undefined;
   let conceptPrompt: string | undefined;
   let genre: string | undefined;
   let mechanics: string | undefined;
+  let phase: 'all' | 'plan' | 'build' | undefined;
+  let slug: string | undefined;
   const premiseParts: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -34,6 +38,16 @@ function parseArgs(argv: string[]): {
       const next = args[++i];
       if (!next) throw new Error('--mechanics requires a value');
       mechanics = next;
+    } else if (a === '--phase') {
+      const next = args[++i] as 'all' | 'plan' | 'build' | undefined;
+      if (!next || !['all', 'plan', 'build'].includes(next)) {
+        throw new Error('--phase must be one of: all, plan, build');
+      }
+      phase = next;
+    } else if (a === '--slug') {
+      const next = args[++i];
+      if (!next) throw new Error('--slug requires a value');
+      slug = next;
     } else if (a === '--help' || a === '-h') {
       printUsageAndExit(0);
     } else {
@@ -41,8 +55,8 @@ function parseArgs(argv: string[]): {
     }
   }
   const premise = premiseParts.join(' ').trim();
-  if (!premise) printUsageAndExit(1);
-  return { premise, modes, conceptPrompt, genre, mechanics };
+  if (!premise && phase !== 'build') printUsageAndExit(1);
+  return { premise, modes, conceptPrompt, genre, mechanics, phase, slug };
 }
 
 function printUsageAndExit(code: number): never {
@@ -55,10 +69,21 @@ function printUsageAndExit(code: number): never {
   process.exit(code);
 }
 
-const { premise, modes, conceptPrompt, genre, mechanics } = parseArgs(
-  process.argv,
-);
-const slug = newSlug(premise);
+const {
+  premise,
+  modes,
+  conceptPrompt,
+  genre,
+  mechanics,
+  phase,
+  slug: providedSlug,
+} = parseArgs(process.argv);
+
+const effectivePhase = phase ?? 'all';
+const slug =
+  effectivePhase === 'build'
+    ? (providedSlug ?? (() => { throw new Error('--slug required for --phase build'); })())
+    : (providedSlug ?? newSlug(premise));
 
 if (process.env.GITHUB_OUTPUT) {
   await appendFile(process.env.GITHUB_OUTPUT, `slug=${slug}\n`);
@@ -75,6 +100,7 @@ runOrchestrator({
   inputModes: modes,
   conceptPrompt,
   designIntent,
+  phase: effectivePhase,
 }).then(
   async (manifest) => {
     process.stdout.write(
