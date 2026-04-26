@@ -1,0 +1,440 @@
+{
+  "slug": "screenshots-from-a-aaa-video-game-themed-c4dd88",
+  "createdAt": "2026-04-26T02:50:07.861Z",
+  "updatedAt": "2026-04-26T04:20:00.000Z",
+  "status": "awaiting_plan_approval",
+  "premise": "screenshots from a AAA video game themed around scaling SpaceX from going to the earth to Mars, use mechanics from Kerbal Space Program, cinematic photorealistic, 3x3 grid",
+  "splats": [],
+  "playtests": [],
+  "errors": [],
+  "designIntent": {
+    "genre": "space exploration simulation",
+    "mechanics": "design rocket -> launch -> manage delta-v during ascent -> orbital insertion -> trans-Mars injection -> Mars landing -> earn contract reward -> repeat"
+  },
+  "concept": {
+    "prompt": "A 3x3 grid of cinematic photorealistic AAA video game screenshots for a SpaceX-to-Mars KSP-style space simulation. Panel 1: Rocket assembly bay interior, Starship-inspired vehicle on assembly tower, dramatic industrial lighting, technicians in suits for scale, HUD overlay showing mass/thrust stats. Panel 2: Launch sequence, Starship lifting off from pad with massive engine exhaust bloom, camera low angle, flame trench glow, smoke billowing, altitude and velocity gauges in dark UI corners. Panel 3: Ascent trajectory, rocket climbing through atmosphere, Earth curvature visible below, blue atmospheric gradient fading to black space, delta-v bar depleting in HUD. Panel 4: Orbital insertion burn, engine firing in the vacuum of space, Earth fully visible as a sphere below, orbital map overlay showing Ap/Pe markers and trajectory arc. Panel 5: Trans-Mars injection burn, deep space black backdrop, engine glow illuminating ship hull, porkchop-plot trajectory window in corner UI, countdown timer. Panel 6: Mars approach, rust-red planet filling half the frame, thin atmosphere halo, ship silhouetted, approach vector and deceleration burn gauge on HUD. Panel 7: Mars EDL (entry descent landing), heat shield glowing orange-red, plasma trail, parachute deployment sequence, altimeter spinning down rapidly. Panel 8: Mars surface operations, astronaut near landed Starship on dusty red regolith, distant red mountains, sunrise lighting casting long shadows, resource collection UI. Panel 9: Contract reward screen, mission complete overlay, Earth and Mars connected by dashed trajectory line, credits earned counter, dark UI with orange and white accents, cinematic letterbox. Overall aesthetic: deep space blacks, dramatic rocket exhaust glow, photorealistic lighting, SpaceX Starship design language, dark HUD with orange/white accents.",
+    "model": "gpt-image-2",
+    "imagePath": "concept.png",
+    "variants": [],
+    "panels": [
+      {
+        "id": "panel-01",
+        "path": "panels/panel-01.png",
+        "row": 0,
+        "col": 0,
+        "role": "main-menu"
+      },
+      {
+        "id": "panel-02",
+        "path": "panels/panel-02.png",
+        "row": 0,
+        "col": 1,
+        "role": "gameplay"
+      },
+      {
+        "id": "panel-03",
+        "path": "panels/panel-03.png",
+        "row": 0,
+        "col": 2,
+        "role": "HUD"
+      },
+      {
+        "id": "panel-04",
+        "path": "panels/panel-04.png",
+        "row": 1,
+        "col": 0,
+        "role": "gameplay"
+      },
+      {
+        "id": "panel-05",
+        "path": "panels/panel-05.png",
+        "row": 1,
+        "col": 1,
+        "role": "gameplay"
+      },
+      {
+        "id": "panel-06",
+        "path": "panels/panel-06.png",
+        "row": 1,
+        "col": 2,
+        "role": "gameplay"
+      },
+      {
+        "id": "panel-07",
+        "path": "panels/panel-07.png",
+        "row": 2,
+        "col": 0,
+        "role": "mechanic"
+      },
+      {
+        "id": "panel-08",
+        "path": "panels/panel-08.png",
+        "row": 2,
+        "col": 1,
+        "role": "environment"
+      },
+      {
+        "id": "panel-09",
+        "path": "panels/panel-09.png",
+        "row": 2,
+        "col": 2,
+        "role": "cutscene"
+      }
+    ]
+  },
+  "styleGuide": {
+    "palette": [
+      "#FF6B1A",
+      "#1a1a1a",
+      "#0099ff",
+      "#c0c0c0",
+      "#8b4513"
+    ],
+    "lighting": "High-contrast dramatic lighting with bright engine flames and glowing thrust against dark space and Martian surfaces",
+    "perspective": "Mixed perspective including launch pad close-ups, orbital mechanics views, planetary approaches, and surface operations",
+    "scale": "Epic scale ranging from intimate spacecraft details to planetary vistas and interplanetary trajectories",
+    "mood": "Ambitious, futuristic, technical, exploratory with hints of triumph and wonder",
+    "era": "Near-future science fiction, contemporary space exploration aesthetic"
+  },
+  "plan": {
+    "template": "physics-vehicle",
+    "title": "SpaceX: Mars Colonization Initiative",
+    "tagline": "From launchpad to the red planet — every kilogram of delta-v counts.",
+    "designIntent": {
+      "genre": "space exploration simulation",
+      "coreMechanics": "Assemble Starship-style rocket in VAB -> ignite engines and manage throttle through Max-Q -> execute orbital insertion burn (Ap and Pe both above 200 km) -> execute trans-Mars injection burn consuming the delta-v budget -> coast to Mars approach corridor -> perform deorbit and EDL sequence -> touch down on Mars surface at low vertical speed -> collect contract reward and repeat with next mission tier",
+      "winCondition": "Vehicle touches down on Mars surface with vertical speed below 5 m/s and fuel remaining above 0",
+      "loseCondition": "Vehicle crashes (vertical speed at impact > 5 m/s), runs out of fuel before Mars landing, or exceeds maximum dynamic pressure without throttle-down causing structural failure",
+      "loopLength": "90 seconds per compressed simulation loop (real-time compressed: ascent 20s, orbit 15s, TMI 10s, transit 5s, approach 15s, EDL 15s, reward 10s)"
+    },
+    "inputModes": [
+      "keyboard",
+      "touch",
+      "gamepad"
+    ],
+    "controls": {
+      "keyboard": {
+        "throttleUp": "W / Up Arrow — increase engine throttle",
+        "throttleDown": "S / Down Arrow — decrease engine throttle",
+        "pitchManeuver": "A / D — pitch/yaw for gravity turn",
+        "stageSeparation": "Space — stage separation / deploy chutes",
+        "confirmAction": "Enter — confirm assembly / execute burn",
+        "abort": "Escape — abort mission"
+      },
+      "touch": {
+        "throttle": "Vertical drag on left side of screen — throttle up/down",
+        "steer": "Joystick on right side — pitch and yaw",
+        "stageSeparation": "Tap STAGE button (bottom center)",
+        "confirmAction": "Tap EXECUTE BURN / LAUNCH button"
+      },
+      "gamepad": {
+        "throttle": "Right trigger (RT) — throttle up; Left trigger (LT) — throttle down",
+        "steer": "Left stick — pitch and yaw",
+        "stageSeparation": "A button — stage / confirm",
+        "abort": "B button — abort"
+      }
+    },
+    "loopSteps": [
+      {
+        "id": "rocket_assembled",
+        "label": "Rocket Assembled",
+        "triggerEvent": "rocket_assembled",
+        "description": "Player confirms rocket design in the Vehicle Assembly Bay and commits to launch. Stats panel shows total mass, thrust, and TWR meeting mission requirements.",
+        "inputHint": {
+          "keyboard": "Enter — confirm assembly and proceed to launchpad",
+          "touch": "Tap LAUNCH VEHICLE button in assembly HUD",
+          "gamepad": "A button — confirm and proceed"
+        }
+      },
+      {
+        "id": "launch",
+        "label": "Liftoff",
+        "triggerEvent": "launch",
+        "description": "All 33 Raptor engines ignite, vehicle clears the launch tower. Altitude exceeds 100 m. Throttle displayed at 100% in HUD.",
+        "inputHint": {
+          "keyboard": "W or Up Arrow — throttle to 100% then Space to ignite",
+          "touch": "Drag left throttle slider to maximum, tap IGNITE",
+          "gamepad": "Hold RT fully, press A to ignite"
+        }
+      },
+      {
+        "id": "max_q",
+        "label": "Max-Q Throttle Management",
+        "triggerEvent": "max_q",
+        "description": "Vehicle reaches ~12 km altitude, max dynamic pressure. Player must throttle down to avoid structural failure, then throttle back up once past max-Q. Delta-v budget gauge updates.",
+        "inputHint": {
+          "keyboard": "S / Down Arrow — reduce throttle through max-Q region",
+          "touch": "Drag left throttle slider down briefly, then back up",
+          "gamepad": "Release RT partially through max-Q, then re-apply"
+        }
+      },
+      {
+        "id": "orbital_insertion",
+        "label": "Orbital Insertion",
+        "triggerEvent": "orbital_insertion",
+        "description": "Player executes the circularization burn. Apoapsis and periapsis both rise above 200 km. Orbital map shows closed ellipse around Earth with Ap/Pe markers.",
+        "inputHint": {
+          "keyboard": "W — hold throttle through circularization burn until Ap/Pe both > 200 km",
+          "touch": "Hold throttle slider at burn level, watch orbital map",
+          "gamepad": "Hold RT through burn; release when orbit closes"
+        }
+      },
+      {
+        "id": "tmi_burn",
+        "label": "Trans-Mars Injection",
+        "triggerEvent": "tmi_burn",
+        "description": "Player executes the TMI burn at the optimal departure window (porkchop plot shown). Full delta-v budget consumed. Time-to-Mars countdown begins.",
+        "inputHint": {
+          "keyboard": "Enter — execute burn at porkchop-plot optimal window",
+          "touch": "Tap EXECUTE BURN when window opens",
+          "gamepad": "A button — execute burn at window"
+        }
+      },
+      {
+        "id": "mars_approach",
+        "label": "Mars Approach",
+        "triggerEvent": "mars_approach",
+        "description": "Vehicle enters Mars sphere of influence, within 50,000 km. Mars fills the viewport. Player initiates deorbit burn to set up EDL trajectory.",
+        "inputHint": {
+          "keyboard": "Enter — execute deorbit burn; W to manage throttle",
+          "touch": "Tap EXECUTE DEORBIT, drag throttle as needed",
+          "gamepad": "A button — execute deorbit burn"
+        }
+      },
+      {
+        "id": "mars_landing",
+        "label": "Mars Landing",
+        "triggerEvent": "mars_landing",
+        "description": "Vehicle survives EDL: aerobraking, chute deployment, landing burn. Touches down on Mars surface with vertical speed below 5 m/s. Landing legs deploy automatically.",
+        "inputHint": {
+          "keyboard": "S — throttle landing burn to slow descent; Space — deploy chutes",
+          "touch": "Drag throttle to manage descent rate, tap DEPLOY CHUTES",
+          "gamepad": "LT to throttle landing burn; A to deploy chutes"
+        }
+      },
+      {
+        "id": "contract_reward",
+        "label": "Contract Complete",
+        "triggerEvent": "contract_reward",
+        "description": "Mission complete screen appears. Earth-to-Mars trajectory arc shown with dashed line. Funds, Reputation, and Science rewards tallied. Player taps Continue to restart loop.",
+        "inputHint": {
+          "keyboard": "Enter — collect reward and return to assembly",
+          "touch": "Tap CONTINUE on contract complete screen",
+          "gamepad": "A button — continue"
+        }
+      }
+    ],
+    "scene": {
+      "camera": "Dynamic third-person chase camera tracking vehicle, transitions to cinematic locked angles at key events (launch, orbital insertion, Mars approach, landing)",
+      "skybox": "Phase-dependent: Earth launch pad environment -> blue atmosphere gradient -> deep space star field -> Mars approach (rust planet dominant) -> Mars surface red sky",
+      "lighting": "Directional sun light with high contrast; engine exhaust point lights (orange-white) during burns; Mars surface: low-angle warm rust-toned sunlight with long shadows; deep space: ambient near-zero with strong specular on hull",
+      "postProcessing": [
+        "bloom (engine exhaust)",
+        "lens flare (sun)",
+        "chromatic aberration (high-speed entry)",
+        "vignette",
+        "motion blur (ascent)",
+        "atmospheric haze (Mars EDL heat shield)"
+      ]
+    },
+    "ui": {
+      "hud": [
+        "Altitude readout (km, top-right)",
+        "Velocity readout (m/s, top-right)",
+        "Throttle dial (0-100%, bottom-right)",
+        "Delta-v budget bar (initial / spent / remaining, right panel)",
+        "Stage status indicator (Stage 1 / Stage 2 / TMI, left panel)",
+        "Mission phase label (LAUNCH / MAX-Q / ORBITAL INSERTION / TMI / MARS APPROACH / EDL / SURFACE, top-left)",
+        "Mission timer T+ (top-left)",
+        "Orbital map mini overlay (Ap/Pe markers, active during orbital phases)",
+        "Porkchop plot window (active during TMI window phase)",
+        "EDL sequence checklist (active during Mars EDL: aerobrake, chutes, landing burn, touchdown)",
+        "Mars surface resource panel (active post-landing)"
+      ],
+      "menus": [
+        "Vehicle Assembly Bay screen (pre-launch: mass/TWR/delta-v summary, VESSEL/RESOURCES/STAGING/SETTINGS tabs)",
+        "Contract Complete overlay (mission success: funds/reputation/science rewards, MISSION SUMMARY / CONTINUE buttons)",
+        "Mission Failed overlay (crash or fuel exhaustion: reason text, RETRY / MAIN MENU buttons)"
+      ],
+      "style": "Dark semi-transparent panels (#1a1a1a at 85% opacity), orange (#FF6B1A) accent lines and active-state highlights, white readout text, monospace font for telemetry values, thin hairline borders, cinematic letterbox bars during cutscene transitions"
+    },
+    "physics": {
+      "gravity": 9.807,
+      "engineThrust": 74000,
+      "fuelMass": 1200000,
+      "dryMass": 200000,
+      "dragCoefficient": 0.3
+    },
+    "milestones": {
+      "orbitalAltitude": 200000,
+      "marsDistance": 54600000,
+      "marsLandingAltitude": 0
+    },
+    "audioMood": "Orchestral tension with deep bass rumble on launch, soaring strings during orbital phases, eerie silence in deep space punctuated by engine burns, triumphant brass swell on Mars landing and contract reward",
+    "moodBoard": [
+      "panel-01: VAB interior — Starship S25 on assembly tower, industrial haze, HUD telemetry overlay, SpaceX technicians for scale",
+      "panel-02: Launch — full-frame engine exhaust bloom, mechazilla tower silhouette, smoke plume, 100% throttle dial, low camera angle",
+      "panel-03: Ascent — Earth curvature below, blue atmosphere fading to black, delta-v budget depleting, max-Q annotation",
+      "panel-04: Orbital insertion — engine glow against Earth sphere, orbital map Ap/Pe markers at ~250 km, deep black vacuum",
+      "panel-05: TMI burn — deep space, porkchop plot, time-to-Mars countdown 169 days, engine exhaust illuminating hull silver",
+      "panel-06: Mars approach — rust-red planet filling frame, thin atmosphere halo, deorbit burn UI, LOCK MARS button",
+      "panel-07: EDL — heat shield orange-red plasma glow, parachute canopies deployed, EDL sequence checklist, altimeter 1.2 km",
+      "panel-08: Surface operations — landed Starship on rust regolith, astronaut for scale, red mountains, resource harvester UI, Sol counter",
+      "panel-09: Contract complete — Earth-to-Mars dashed arc, MARS COLONIZATION INITIATIVE title, funds +32.45M / reputation +750 / science +1250"
+    ],
+    "winCondition": "mars_landing event fires with vertical speed < 5 m/s, followed by contract_reward event",
+    "loseCondition": "Vehicle impact speed > 5 m/s on any surface, OR fuel exhausted before mars_landing event fires"
+  },
+  "assets": [
+    {
+      "id": "asset-starship-upper-stage",
+      "label": "Starship Upper Stage",
+      "type": "mesh",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Starship-inspired upper stage spacecraft, tall silver stainless steel cylindrical body with black heat shield tiles on the windward side, small canard fins at nose, large aft flap fins, six Raptor engine nozzles at base, no booster attached",
+      "heroShotPrompt": "Starship upper stage spacecraft, stainless steel hull, black heat shield tiles on belly, canard fins near nose, large aft flaps, six engine nozzles at base, isolated on plain dark background, cinematic studio lighting, photorealistic",
+      "meshPrompt": "Starship upper stage rocket, stainless steel cylindrical body, black heat shield tiles, canard fins, large aft flaps, six Raptor engine nozzles at base, isolated, plain background"
+    },
+    {
+      "id": "asset-super-heavy-booster",
+      "label": "Super Heavy Booster",
+      "type": "mesh",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Super Heavy first stage booster, wide stainless steel cylinder, grid fins near top, 33 Raptor engine nozzles clustered at base forming a distinctive circular array, no upper stage attached",
+      "heroShotPrompt": "Super Heavy rocket booster, large stainless steel cylinder, four grid fins near top, 33 Raptor engine nozzles clustered at base, isolated on plain dark background, photorealistic cinematic lighting",
+      "meshPrompt": "Super Heavy rocket booster stage, stainless steel cylinder, grid fins at top, 33 engine nozzles clustered at base, isolated, plain background"
+    },
+    {
+      "id": "asset-mechazilla-launch-tower",
+      "label": "Mechazilla Launch Tower",
+      "type": "mesh",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Mechazilla launch and catch tower, tall orange-grey steel lattice structure with two large mechanical catch arms extending horizontally at the upper section, launch pad base with flame trench below, industrial crane elements",
+      "heroShotPrompt": "Mechazilla rocket launch and catch tower, tall orange steel lattice structure, two large mechanical catch arms at upper level, industrial construction, launch pad base, isolated on plain background, photorealistic",
+      "meshPrompt": "Mechazilla launch tower, tall steel lattice structure, two large mechanical catch arms, launch pad base with flame trench, industrial, isolated, plain background"
+    },
+    {
+      "id": "asset-starship-landed-mars",
+      "label": "Starship Landed on Mars",
+      "type": "mesh",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Landed Starship on Mars surface variant, six landing legs fully deployed and spread wide, heat shield tiles darkened from EDL, dusty rust-red regolith texture on lower legs, no booster, vertical orientation",
+      "heroShotPrompt": "Starship spacecraft standing upright on Mars surface, six wide landing legs deployed, heat shield tiles darkened from reentry, dusty red Martian regolith, isolated on plain background, photorealistic warm Martian sunlight",
+      "meshPrompt": "Starship rocket standing on Mars, six landing legs deployed, heat-darkened tiles, dusty base, isolated, plain background"
+    },
+    {
+      "id": "asset-launch-pad-base",
+      "label": "Launch Pad Base",
+      "type": "mesh",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Orbital launch pad base, wide concrete platform with central flame trench opening, water deluge pipes along edges, hold-down clamp ring at center, road markings, photorealistic weathered concrete",
+      "heroShotPrompt": "Rocket launch pad base, wide weathered concrete platform, central flame trench, water deluge pipes, hold-down clamp ring, industrial infrastructure, isolated on plain background, photorealistic overhead-angle lighting",
+      "meshPrompt": "Rocket launch pad concrete base, flame trench opening, water deluge pipes, hold-down clamps, industrial, isolated, plain background"
+    },
+    {
+      "id": "asset-mars-surface-terrain",
+      "label": "Mars Surface Terrain Chunk",
+      "type": "mesh",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Mars surface terrain section, rust-red iron-oxide regolith with scattered rocks and boulders, low rolling hills in background, dusty flat foreground, photorealistic Martian geology",
+      "heroShotPrompt": "Mars surface terrain, rust-red iron-oxide regolith, scattered rocks and boulders, low rolling hills, dusty flat area, photorealistic warm golden-hour Martian sunlight, isolated on plain background",
+      "meshPrompt": "Mars surface terrain chunk, rust-red regolith, rocks and boulders, low hills, isolated, plain background"
+    },
+    {
+      "id": "asset-astronaut-spacesuit",
+      "label": "Astronaut in Spacesuit",
+      "type": "mesh",
+      "status": "pending",
+      "attempts": 0,
+      "description": "SpaceX-style astronaut in white pressure suit with black visor, integrated life support backpack, gloves, helmet with orange stripe detail, standing pose",
+      "heroShotPrompt": "SpaceX astronaut in white pressure suit, black reflective visor helmet, orange accent stripe, integrated life support backpack, standing, isolated on plain dark background, photorealistic studio lighting",
+      "meshPrompt": "SpaceX astronaut spacesuit, white suit, black visor, orange stripe, life support backpack, standing pose, isolated, plain background"
+    },
+    {
+      "id": "asset-skybox-earth-orbit",
+      "label": "Earth from Low Orbit Skybox",
+      "type": "skybox",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Photorealistic Earth as seen from low orbit, brilliant blue oceans, white cloud swirls, green and brown continents, thin atmosphere limb glow, deep black space above, equirectangular projection for skybox",
+      "heroShotPrompt": "Photorealistic Earth from low orbit, brilliant blue oceans, white cloud layers, green brown continents, thin atmospheric limb glow, deep black space, panoramic 360-degree view",
+      "meshPrompt": ""
+    },
+    {
+      "id": "asset-skybox-deep-space",
+      "label": "Deep Space Star Field Skybox",
+      "type": "skybox",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Photorealistic deep space star field, dense Milky Way band visible, thousands of stars of varying brightness, subtle nebula tints, pure black void, equirectangular for skybox use",
+      "heroShotPrompt": "Photorealistic deep space star field, dense Milky Way band, thousands of stars of varying brightness, faint nebula colours, pure black void, panoramic 360-degree view",
+      "meshPrompt": ""
+    },
+    {
+      "id": "asset-skybox-mars-approach",
+      "label": "Mars Approach Skybox",
+      "type": "skybox",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Mars as the dominant feature filling roughly half the frame, rust-red and ochre surface with polar ice cap, thin dust-haze atmosphere limb, deep black space, star field background, equirectangular projection",
+      "heroShotPrompt": "Mars planet filling most of the frame, rust-red ochre surface, polar ice cap, thin atmosphere halo, deep black space with stars, panoramic 360-degree view, photorealistic",
+      "meshPrompt": ""
+    },
+    {
+      "id": "asset-skybox-mars-surface",
+      "label": "Mars Surface Sky Skybox",
+      "type": "skybox",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Mars surface environment panorama, dusty salmon-pink sky with subtle haze, low sun casting long warm shadows, distant red rock formations and mountains on horizon, rust-red ground plane, equirectangular for skybox",
+      "heroShotPrompt": "Mars surface environment panorama, dusty salmon-pink sky, low warm sun casting long shadows, distant red rock mountains on horizon, rust-red regolith ground, 360-degree panoramic view, photorealistic",
+      "meshPrompt": ""
+    },
+    {
+      "id": "asset-texture-hud-panel",
+      "label": "HUD Panel Texture",
+      "type": "texture",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Dark glass HUD panel texture, near-black background with subtle dark grid lines, orange delta-v progress bar element, white monospace telemetry text placeholders, thin orange hairline border, transparent areas for compositing",
+      "heroShotPrompt": "Dark glass HUD instrument panel, near-black background, orange delta-v bar, white monospace telemetry readout text, thin orange border lines, subtle grid texture, flat design isolated on black background",
+      "meshPrompt": ""
+    },
+    {
+      "id": "asset-texture-engine-exhaust",
+      "label": "Engine Exhaust VFX Sprite Sheet",
+      "type": "texture",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Raptor engine exhaust plume sprite sheet, 4x4 grid of animation frames, bright white-orange incandescent core transitioning to translucent blue-violet Mach diamonds, dark grey smoke wisps at outer edges, black background",
+      "heroShotPrompt": "Rocket engine exhaust plume sprite sheet, 4x4 animation frames grid, bright white-orange incandescent core, blue Mach diamonds, translucent outer smoke wisps, isolated on black background, flat layout",
+      "meshPrompt": ""
+    },
+    {
+      "id": "asset-texture-heat-shield",
+      "label": "Heat Shield Tile Texture",
+      "type": "texture",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Reusable spacecraft heat shield tile texture, hexagonal TUFROC-style black ceramic tiles in a grid pattern, subtle grout lines, charred and soot-stained variations, glowing orange at tile edges for EDL state, tileable",
+      "heroShotPrompt": "Spacecraft heat shield tile surface texture, hexagonal black ceramic tiles, charred soot staining, subtle orange glow at edges simulating reentry heat, tileable flat view, photorealistic material",
+      "meshPrompt": ""
+    },
+    {
+      "id": "asset-texture-mars-regolith",
+      "label": "Mars Regolith Surface Texture",
+      "type": "texture",
+      "status": "pending",
+      "attempts": 0,
+      "description": "Photorealistic Mars surface regolith texture, fine rust-red iron oxide dust mixed with darker basalt gravel, small pebbles scattered, subtle wind-ripple patterns, tileable for terrain mapping",
+      "heroShotPrompt": "Mars surface regolith texture close-up, rust-red iron oxide dust, dark basalt gravel pebbles, subtle wind ripple patterns, photorealistic flat tileable view",
+      "meshPrompt": ""
+    }
+  ]
+}
