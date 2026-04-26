@@ -328,11 +328,12 @@ export function Author() {
 
       {cloudReady && conceptSrc && (
         <div className="run-card">
-          <h2>2. Genre & mechanics</h2>
+          <h2>2. Mechanics in a gameplay loop</h2>
           <p className="muted small">
-            The concept image is art-direction. Pin down the genre and core
-            mechanics so the planner subagent builds a slice that actually
-            plays the way you want.
+            The concept image is art-direction. Pin down the gameplay loop
+            — the 30–60 second cycle the player will actually live in. Each
+            arrow is a controllable action with a visible consequence that
+            pulls them to the next step.
           </p>
           <label className="field">
             <span>Genre</span>
@@ -345,12 +346,12 @@ export function Author() {
             />
           </label>
           <label className="field">
-            <span>Core mechanics</span>
+            <span>Gameplay loop</span>
             <textarea
               value={mechanics}
               onChange={(e) => setMechanics(e.target.value)}
-              placeholder="e.g. rocket assembly, fuel/delta-v management, orbital-mechanics flight, colony resource trees, mission contracts"
-              rows={3}
+              placeholder="e.g. assemble rocket stages → launch → manage delta-v during ascent → execute orbital insertion → land on Mars surface → earn contract reward → unlock next component → repeat"
+              rows={4}
               disabled={approved}
             />
           </label>

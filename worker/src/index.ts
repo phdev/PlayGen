@@ -346,7 +346,7 @@ async function analyzeIntent(
       model: ANALYSIS_MODEL,
       max_tokens: 300,
       system:
-        'Extract the intended video game genre and core mechanics from the user prompt. Respond with ONLY a JSON object on a single line, no commentary, no code fences: {"genre":"<one short phrase>","mechanics":"<comma-separated 3-6 mechanic names>"}. If the prompt explicitly references another game (e.g. "mechanics from Kerbal Space Program"), expand it to that game\'s actual mechanics.',
+        'Extract the intended video game genre and the GAMEPLAY LOOP from the user prompt. The gameplay loop is the 30-60 second cycle a player lives in during a vertical slice: what action they take, the consequence, the next decision, and how it loops back. Each step must be a controllable action that produces an observable change. Respond with ONLY a JSON object on a single line, no commentary, no code fences: {"genre":"<one short phrase>","mechanics":"<step 1 -> step 2 -> step 3 -> ... -> back to step 1>"}. If the prompt explicitly references another game (e.g. "mechanics from Kerbal Space Program"), expand to THAT GAME\'s actual core loop, not a generic list.',
       messages: [{ role: 'user', content: prompt }],
     }),
   });

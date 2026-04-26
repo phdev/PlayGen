@@ -54,7 +54,11 @@ export function Gallery() {
                 <div className="placeholder" aria-hidden />
               )}
               <h3>{s.title ?? s.slug}</h3>
+              {s.genre && <p className="genre-tag small">{s.genre}</p>}
               <p className="muted small">{s.premise}</p>
+              {s.gameplayLoop && (
+                <p className="loop-line small">{s.gameplayLoop}</p>
+              )}
               <p className="status">
                 Status: <code>{s.status}</code>
               </p>

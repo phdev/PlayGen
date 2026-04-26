@@ -2,6 +2,8 @@ export interface SliceEntry {
   slug: string;
   title?: string;
   premise: string;
+  genre?: string;
+  gameplayLoop?: string;
   status: string;
   publishedUrl?: string;
   thumbnailUrl?: string;

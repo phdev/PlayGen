@@ -6,6 +6,8 @@ interface IndexEntry {
   slug: string;
   title?: string;
   premise: string;
+  genre?: string;
+  gameplayLoop?: string;
   status: string;
   publishedUrl?: string;
   thumbnailUrl?: string;
@@ -82,6 +84,8 @@ async function main(): Promise<void> {
     slug: manifest.slug,
     title: manifest.plan?.title,
     premise: manifest.premise,
+    genre: manifest.designIntent?.genre,
+    gameplayLoop: manifest.designIntent?.mechanics,
     status: manifest.status,
     publishedUrl,
     thumbnailUrl,

@@ -50,7 +50,7 @@ const SUBAGENTS: Record<string, SubagentDef> = {
       'You are the slice planner.',
       'AUTHORITATIVE INPUTS (read first, in this order): manifest.designIntent (genre + core mechanics — player-confirmed, non-negotiable), then manifest.premise, then the concept image.',
       'manifest.designIntent.genre defines the gameplay loop archetype (e.g. real-time strategy, twin-stick shooter, tower defense, sim). The level\'s mechanics, controls, and win/lose conditions must implement THAT genre.',
-      'manifest.designIntent.mechanics is the comma-or-prose list of systems the slice must demonstrate. Every item should be observable in gameplay — pick the 2-4 that fit a vertical slice and make them load-bearing.',
+      'manifest.designIntent.mechanics IS THE GAMEPLAY LOOP — a 30-60 second cycle written as ordered steps (step 1 -> step 2 -> ... -> back to step 1). The slice MUST implement every step in that loop. Each step needs (a) a control binding the player can trigger, (b) an observable __playgen event emitted when triggered, (c) a state change that pulls the player toward the next step. The win/lose conditions should mark loop-completion or loop-failure, not arbitrary score thresholds.',
       'The concept image is a multi-panel composite — interpret it as art-direction and atmosphere, NOT as a literal asset list. It cannot override designIntent.',
       'Produce manifest.plan with: title, oneLineHook, inputModes (must include keyboard, touch, gamepad), per-mode controls that activate the chosen mechanics, exactly one level for v1, mechanics, winCondition, loseCondition.',
       'Append AssetRecords for each character/prop/environment piece needed.',

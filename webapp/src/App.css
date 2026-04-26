@@ -422,6 +422,29 @@ button.ghost:hover {
   color: var(--fg-muted);
 }
 
+.gallery .card .genre-tag {
+  display: inline-block;
+  margin: 0 14px 6px;
+  padding: 2px 8px;
+  background: var(--bg-3);
+  color: var(--accent);
+  border-radius: 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gallery .card .loop-line {
+  margin: 8px 14px 0;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-left: 2px solid var(--accent);
+  border-radius: 3px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fg);
+}
+
 .slice-view iframe {
   width: 100%;
   aspect-ratio: 16 / 9;
