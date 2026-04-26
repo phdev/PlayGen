@@ -38,6 +38,11 @@ on:
         required: false
         default: ''
         type: string
+      edited_plan:
+        description: JSON of {plan, assets} to apply before build (overwrites planner output)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -68,6 +73,7 @@ jobs:
       PLAYGEN_GENRE: ${{ inputs.genre }}
       PLAYGEN_MECHANICS: ${{ inputs.mechanics }}
       PLAYGEN_PHASE: ${{ inputs.phase }}
+      PLAYGEN_EDITED_PLAN: ${{ inputs.edited_plan }}
     steps:
       - uses: actions/checkout@v4
         with:

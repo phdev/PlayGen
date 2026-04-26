@@ -365,23 +365,98 @@ button.ghost:hover {
   border-radius: 3px;
 }
 
-.plan-card .asset-list {
+.plan-card .field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.plan-card .edit-list {
   margin: 0;
-  padding-left: 18px;
-  list-style: disc;
+  padding: 0;
+  list-style: none;
   font-size: 13px;
-  line-height: 1.6;
-  max-height: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
   overflow-y: auto;
 }
 
-.plan-card .asset-list li code {
+.plan-card .edit-list li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.plan-card .edit-list li input[type='text'] {
+  flex: 1;
+  padding: 5px 8px;
   background: var(--bg-2);
-  padding: 1px 6px;
-  border-radius: 3px;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.plan-card .edit-list li.asset-row {
+  align-items: flex-start;
+}
+
+.plan-card .edit-list li.asset-row select {
+  padding: 5px 8px;
+  background: var(--bg-2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
   text-transform: uppercase;
-  font-size: 11px;
   letter-spacing: 0.04em;
+}
+
+.plan-card .edit-list li.asset-row textarea {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--bg-2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.plan-card .row-btn {
+  background: var(--bg-2);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 28px;
+}
+
+.plan-card .row-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.plan-card .row-btn.danger:hover:not(:disabled) {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.plan-card .row-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.plan-card button.ghost.small {
+  font-size: 12px;
+  padding: 6px 12px;
+  margin-top: 8px;
 }
 
 .ready-card {

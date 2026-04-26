@@ -11,8 +11,10 @@ import {
   updateManifest,
 } from '../src/orchestrator/manifest.js';
 import type {
+  FailureReport,
   InputMode,
   PlaytestRun,
+  ScenarioFailure,
   Verdict,
 } from '../src/types/manifest.js';
 
@@ -94,18 +96,66 @@ async function main(): Promise<void> {
 
   const overall = rollUp(runs);
 
+  const failureReport: FailureReport | undefined =
+    overall === 'pass'
+      ? undefined
+      : buildFailureReport(runs, manifest.plan?.loopSteps ?? [], manifest);
+
   await updateManifest(slug, (m) => ({
     playtests: [...m.playtests, ...runs],
     status: overall === 'pass' ? 'complete' : 'fixing',
+    ...(failureReport ? { lastFailureReport: failureReport } : {}),
   }));
 
   process.stdout.write(
-    JSON.stringify({ overall, runs }, null, 2) + '\n',
+    JSON.stringify({ overall, runs, failureReport }, null, 2) + '\n',
   );
   process.exit(overall === 'pass' ? 0 : 1);
   } finally {
     if (preview) await preview.close();
   }
+}
+
+function buildFailureReport(
+  runs: PlaytestRun[],
+  loopSteps: { name: string }[],
+  manifest: { lastFailureReport?: { attempt: number } | undefined },
+): FailureReport {
+  const stepNames = loopSteps.map((s) => s.name);
+  const firedSteps = new Set<string>();
+  const lastErrors = new Set<string>();
+  const modesAffected = new Set<InputMode>();
+  const scenarioFailures: ScenarioFailure[] = [];
+
+  for (const r of runs) {
+    if (r.finalState) {
+      for (const ev of r.finalState.events ?? []) {
+        if (ev.kind === 'progress') {
+          const step = (ev.payload as { step?: string } | undefined)?.step;
+          if (step) firedSteps.add(step);
+        }
+      }
+      if (r.finalState.lastError) lastErrors.add(r.finalState.lastError);
+    }
+    if (r.verdict === 'fail') {
+      modesAffected.add(r.inputMode);
+      scenarioFailures.push({
+        scenario: r.scenario,
+        inputMode: r.inputMode,
+        reason: r.notes ?? 'unspecified failure',
+      });
+    }
+  }
+
+  return {
+    t: new Date().toISOString(),
+    attempt: (manifest.lastFailureReport?.attempt ?? 0) + 1,
+    missingSteps: stepNames.filter((s) => !firedSteps.has(s)),
+    firedSteps: Array.from(firedSteps),
+    lastErrors: Array.from(lastErrors),
+    modesAffected: Array.from(modesAffected),
+    scenarioFailures,
+  };
 }
 
 async function startPreview(slug: string): Promise<{

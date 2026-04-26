@@ -81,12 +81,14 @@ const SUBAGENTS: Record<string, SubagentDef> = {
     description: 'Builds a runnable PlayCanvas slice into games/<slug>/build/.',
     prompt: [
       'You are the scene builder. Engine-only path (works in CI, no editor required):',
-      'Step 1 — Clone the template the planner chose: `cp -R templates/${manifest.plan.template} games/<slug>/build`. If manifest.plan.template is unset, fall back to basic-platformer.',
-      'Step 2 — Edit games/<slug>/build/src/main.ts per manifest.plan: swap the placeholder primitives for the GLB assets in games/<slug>/assets/, wire controls per manifest.plan.controls, set win/lose conditions, and CRITICALLY: for every entry in manifest.plan.loopSteps, ensure the game calls emit("progress", { step: "<name>" }) when the player triggers that step. The harness verifies all step names appear in __playgen.events.',
+      'IF manifest.lastFailureReport IS SET (this is a fix iteration): treat it as the source of truth. Wire emits and behaviors for every entry in lastFailureReport.missingSteps. Address every entry in lastFailureReport.scenarioFailures. Fix every entry in lastFailureReport.lastErrors. Re-build before exiting.',
+      'IF manifest.lastFailureReport IS NOT SET (initial assembly):',
+      'Step 1 — Clone the template the planner chose: `cp -R templates/${manifest.plan.template} games/<slug>/build`. If unset, fall back to basic-platformer.',
+      'Step 2 — Mechanic snippet library at templates/_shared/mechanics/ has idiomatic implementations of common mechanics (orbital-flight, staging, pickup, wave-spawn). For each loopStep in manifest.plan.loopSteps that matches a known mechanic, copy the matching snippet to games/<slug>/build/src/mechanics/<name>.ts and import it in main.ts. Compose snippets instead of authoring physics from scratch where possible.',
+      'Step 3 — Edit games/<slug>/build/src/main.ts per manifest.plan: swap the placeholder primitives for the GLB assets in games/<slug>/assets/, wire controls per manifest.plan.controls, set win/lose conditions, and CRITICALLY: for every entry in manifest.plan.loopSteps, ensure the game calls emit("progress", { step: "<name>" }) when the player triggers that step. The harness verifies all step names appear in __playgen.events.',
       'Every generated game MUST keep the window.__playgen contract intact (initPlayGen, setReady, setPlaying, emit, tick, reportError).',
-      'Step 3 — Build: `cd games/<slug>/build && npm install --no-audit --no-fund && npm run build`. The resulting dist/ is what the harness and Pages serve.',
-      'Step 4 — Set manifest.status = "playtest". Leave manifest.playcanvas.publishedUrl unset; playtest will spawn a local preview server, and publish-slice will set the final hosted URL.',
-      'Optional cloud path: when manifest demands cloud-hosted publishing, also run `npx tsx scripts/upload-asset.ts <slug> <assetId>` per asset to push GLBs to the PlayCanvas project — the editor MCP server cannot push binaries directly.',
+      'Step 4 — Build: `cd games/<slug>/build && npm install --no-audit --no-fund && npm run build`. The resulting dist/ is what the harness and Pages serve.',
+      'Step 5 — Set manifest.status = "playtest". Leave manifest.playcanvas.publishedUrl unset; playtest spawns a preview server.',
     ].join(' '),
   },
   playtest: {
@@ -116,6 +118,37 @@ export async function runOrchestrator(opts: RunOptions): Promise<Manifest> {
       throw new Error('phase="build" requires a slug to resume from');
     }
     manifest = await loadManifest(opts.slug);
+
+    const editedPlanRaw = process.env.PLAYGEN_EDITED_PLAN?.trim();
+    if (editedPlanRaw) {
+      try {
+        const parsed = JSON.parse(editedPlanRaw) as {
+          plan?: Manifest['plan'];
+          assets?: Manifest['assets'];
+        };
+        await updateManifest(opts.slug, {
+          ...(parsed.plan ? { plan: parsed.plan } : {}),
+          ...(parsed.assets
+            ? {
+                assets: parsed.assets.map((a) => ({
+                  ...a,
+                  status: 'pending' as const,
+                  attempts: 0,
+                  glbPath: undefined,
+                  meshyTaskId: undefined,
+                  errorMessage: undefined,
+                  sourceImagePath: undefined,
+                })),
+              }
+            : {}),
+        });
+        manifest = await loadManifest(opts.slug);
+      } catch (err) {
+        process.stderr.write(
+          `[orchestrator] failed to apply PLAYGEN_EDITED_PLAN: ${err instanceof Error ? err.message : String(err)}\n`,
+        );
+      }
+    }
   } else {
     manifest = await createManifest(opts.premise, opts.slug);
   }

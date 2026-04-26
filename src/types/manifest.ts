@@ -34,6 +34,7 @@ export interface Manifest {
   playcanvas?: PlayCanvasProject;
   playtests: PlaytestRun[];
   errors: ManifestError[];
+  lastFailureReport?: FailureReport;
 }
 
 export interface ConceptPanel {
@@ -143,4 +144,20 @@ export interface ManifestError {
   stage: ManifestStatus;
   message: string;
   details?: unknown;
+}
+
+export interface ScenarioFailure {
+  scenario: string;
+  inputMode: InputMode;
+  reason: string;
+}
+
+export interface FailureReport {
+  t: string;
+  attempt: number;
+  missingSteps: string[];
+  firedSteps: string[];
+  lastErrors: string[];
+  modesAffected: InputMode[];
+  scenarioFailures: ScenarioFailure[];
 }

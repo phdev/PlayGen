@@ -57,6 +57,17 @@ export function Author() {
   const [planManifest, setPlanManifest] = useState<PlanManifest | null>(null);
   const [buildBusy, setBuildBusy] = useState(false);
 
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedHook, setEditedHook] = useState('');
+  const [editedWin, setEditedWin] = useState('');
+  const [editedLose, setEditedLose] = useState('');
+  const [editedLoopSteps, setEditedLoopSteps] = useState<
+    Array<{ name: string; control?: string }>
+  >([]);
+  const [editedAssets, setEditedAssets] = useState<
+    Array<{ id: string; kind: string; prompt: string }>
+  >([]);
+
   const cloudReady = isDispatchConfigured();
 
   const command = useMemo(() => {
@@ -96,6 +107,27 @@ export function Author() {
   useEffect(() => {
     if (cloudReady) refreshRuns();
   }, [cloudReady]);
+
+  useEffect(() => {
+    if (!planManifest?.plan) return;
+    setEditedTitle(planManifest.plan.title ?? '');
+    setEditedHook(planManifest.plan.oneLineHook ?? '');
+    setEditedWin(planManifest.plan.winCondition ?? '');
+    setEditedLose(planManifest.plan.loseCondition ?? '');
+    setEditedLoopSteps(
+      (planManifest.plan.loopSteps ?? []).map((s) => ({
+        name: s.name,
+        control: s.control,
+      })),
+    );
+    setEditedAssets(
+      (planManifest.assets ?? []).map((a) => ({
+        id: a.id,
+        kind: a.kind,
+        prompt: a.prompt,
+      })),
+    );
+  }, [planManifest]);
 
   useEffect(() => {
     if (!planSlug || planManifest) return;
@@ -254,16 +286,88 @@ export function Author() {
     }
   }
 
+  function updateLoopStep(
+    idx: number,
+    field: 'name' | 'control',
+    value: string,
+  ): void {
+    setEditedLoopSteps((steps) =>
+      steps.map((s, i) => (i === idx ? { ...s, [field]: value } : s)),
+    );
+  }
+
+  function moveLoopStep(idx: number, delta: number): void {
+    setEditedLoopSteps((steps) => {
+      const target = idx + delta;
+      if (target < 0 || target >= steps.length) return steps;
+      const next = steps.slice();
+      const [moved] = next.splice(idx, 1);
+      next.splice(target, 0, moved!);
+      return next;
+    });
+  }
+
+  function addLoopStep(): void {
+    setEditedLoopSteps((steps) => [...steps, { name: '', control: '' }]);
+  }
+
+  function removeLoopStep(idx: number): void {
+    setEditedLoopSteps((steps) => steps.filter((_, i) => i !== idx));
+  }
+
+  function updateAsset(
+    idx: number,
+    field: 'kind' | 'prompt',
+    value: string,
+  ): void {
+    setEditedAssets((assets) =>
+      assets.map((a, i) => (i === idx ? { ...a, [field]: value } : a)),
+    );
+  }
+
+  function addAsset(): void {
+    setEditedAssets((assets) => [
+      ...assets,
+      {
+        id: `asset-${assets.length + 1}-${crypto.randomUUID().slice(0, 4)}`,
+        kind: 'prop',
+        prompt: '',
+      },
+    ]);
+  }
+
+  function removeAsset(idx: number): void {
+    setEditedAssets((assets) => assets.filter((_, i) => i !== idx));
+  }
+
   async function approvePlanAndBuild(): Promise<void> {
-    if (!planSlug || !planManifest) return;
+    if (!planSlug || !planManifest?.plan) return;
     setBuildBusy(true);
     setCloudStatus('Dispatching build workflow…');
     try {
+      const editedPlan = JSON.stringify({
+        plan: {
+          ...planManifest.plan,
+          title: editedTitle,
+          oneLineHook: editedHook,
+          winCondition: editedWin,
+          loseCondition: editedLose,
+          loopSteps: editedLoopSteps.filter((s) => s.name.trim()),
+        },
+        assets: editedAssets
+          .filter((a) => a.prompt.trim())
+          .map((a) => ({
+            id: a.id,
+            kind: a.kind,
+            prompt: a.prompt.trim(),
+          })),
+      });
       await dispatchGenerate({
         phase: 'build',
         slug: planSlug,
         premise: premise.trim(),
         modes: Array.from(modes),
+        editedPlan,
       });
       setCloudStatus(
         'Build started. A "Play it" link will appear once the slice is ready (~10–20 min).',
@@ -467,39 +571,173 @@ export function Author() {
           {cloudStatus && <p className="cloud-status">{cloudStatus}</p>}
           {planManifest && planManifest.plan && (
             <div className="plan-card">
-              <h3>{planManifest.plan.title}</h3>
+              <h3>Edit plan</h3>
               <p className="muted small">
-                {planManifest.plan.oneLineHook}
+                Tweak the title, loop steps, and asset list before any
+                Meshy budget is spent.
               </p>
               <p className="plan-meta small">
-                Template: <code>{planManifest.plan.template}</code> · Win:{' '}
-                {planManifest.plan.winCondition} · Lose:{' '}
-                {planManifest.plan.loseCondition}
+                Template: <code>{planManifest.plan.template}</code>
               </p>
+              <label className="field">
+                <span>Title</span>
+                <input
+                  type="text"
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  disabled={buildBusy || Boolean(pending)}
+                />
+              </label>
+              <label className="field">
+                <span>One-line hook</span>
+                <input
+                  type="text"
+                  value={editedHook}
+                  onChange={(e) => setEditedHook(e.target.value)}
+                  disabled={buildBusy || Boolean(pending)}
+                />
+              </label>
+              <div className="field-row">
+                <label className="field">
+                  <span>Win condition</span>
+                  <input
+                    type="text"
+                    value={editedWin}
+                    onChange={(e) => setEditedWin(e.target.value)}
+                    disabled={buildBusy || Boolean(pending)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Lose condition</span>
+                  <input
+                    type="text"
+                    value={editedLose}
+                    onChange={(e) => setEditedLose(e.target.value)}
+                    disabled={buildBusy || Boolean(pending)}
+                  />
+                </label>
+              </div>
+
               <h4>Gameplay loop</h4>
-              <ol className="loop-list">
-                {planManifest.plan.loopSteps.map((s, i) => (
+              <ul className="edit-list">
+                {editedLoopSteps.map((step, i) => (
                   <li key={i}>
-                    <code>{s.name}</code>
-                    {s.control ? (
-                      <span className="muted small"> · {s.control}</span>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-              <h4>Assets ({planManifest.assets.length})</h4>
-              <ul className="asset-list">
-                {planManifest.assets.map((a) => (
-                  <li key={a.id}>
-                    <code>{a.kind}</code> · {a.prompt}
+                    <input
+                      type="text"
+                      value={step.name}
+                      onChange={(e) =>
+                        updateLoopStep(i, 'name', e.target.value)
+                      }
+                      placeholder="step-name (kebab-case)"
+                      disabled={buildBusy || Boolean(pending)}
+                    />
+                    <input
+                      type="text"
+                      value={step.control ?? ''}
+                      onChange={(e) =>
+                        updateLoopStep(i, 'control', e.target.value)
+                      }
+                      placeholder="control (e.g. W)"
+                      disabled={buildBusy || Boolean(pending)}
+                    />
+                    <button
+                      className="row-btn"
+                      type="button"
+                      onClick={() => moveLoopStep(i, -1)}
+                      disabled={i === 0 || buildBusy || Boolean(pending)}
+                      aria-label="Move up"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      className="row-btn"
+                      type="button"
+                      onClick={() => moveLoopStep(i, 1)}
+                      disabled={
+                        i === editedLoopSteps.length - 1 ||
+                        buildBusy ||
+                        Boolean(pending)
+                      }
+                      aria-label="Move down"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      className="row-btn danger"
+                      type="button"
+                      onClick={() => removeLoopStep(i)}
+                      disabled={buildBusy || Boolean(pending)}
+                      aria-label="Remove"
+                    >
+                      ×
+                    </button>
                   </li>
                 ))}
               </ul>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={addLoopStep}
+                disabled={buildBusy || Boolean(pending)}
+              >
+                + Add step
+              </button>
+
+              <h4>Assets</h4>
+              <ul className="edit-list">
+                {editedAssets.map((asset, i) => (
+                  <li key={asset.id} className="asset-row">
+                    <select
+                      value={asset.kind}
+                      onChange={(e) => updateAsset(i, 'kind', e.target.value)}
+                      disabled={buildBusy || Boolean(pending)}
+                    >
+                      <option value="character">character</option>
+                      <option value="prop">prop</option>
+                      <option value="environment">environment</option>
+                      <option value="fx">fx</option>
+                    </select>
+                    <textarea
+                      value={asset.prompt}
+                      onChange={(e) =>
+                        updateAsset(i, 'prompt', e.target.value)
+                      }
+                      rows={2}
+                      placeholder="single-subject description"
+                      disabled={buildBusy || Boolean(pending)}
+                    />
+                    <button
+                      className="row-btn danger"
+                      type="button"
+                      onClick={() => removeAsset(i)}
+                      disabled={buildBusy || Boolean(pending)}
+                      aria-label="Remove"
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button
+                className="ghost small"
+                type="button"
+                onClick={addAsset}
+                disabled={buildBusy || Boolean(pending)}
+              >
+                + Add asset
+              </button>
+
               <div className="cloud-actions">
                 <button
                   className="primary"
                   onClick={approvePlanAndBuild}
-                  disabled={buildBusy || Boolean(pending)}
+                  disabled={
+                    buildBusy ||
+                    Boolean(pending) ||
+                    !editedTitle.trim() ||
+                    editedLoopSteps.filter((s) => s.name.trim()).length === 0 ||
+                    editedAssets.filter((a) => a.prompt.trim()).length === 0
+                  }
                 >
                   {buildBusy
                     ? 'Dispatching…'

@@ -19,6 +19,7 @@ export interface DispatchOptions {
   mechanics?: string;
   phase?: 'all' | 'plan' | 'build';
   slug?: string;
+  editedPlan?: string;
 }
 
 export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
@@ -38,6 +39,7 @@ export async function dispatchGenerate(opts: DispatchOptions): Promise<void> {
       ...(opts.mechanics ? { mechanics: opts.mechanics } : {}),
       ...(opts.phase ? { phase: opts.phase } : {}),
       ...(opts.slug ? { slug: opts.slug } : {}),
+      ...(opts.editedPlan ? { editedPlan: opts.editedPlan } : {}),
     }),
   });
   if (!res.ok) {

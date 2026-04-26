@@ -69,6 +69,7 @@ async function dispatch(
     mechanics?: unknown;
     phase?: unknown;
     slug?: unknown;
+    editedPlan?: unknown;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -97,6 +98,8 @@ async function dispatch(
     ? (phaseRaw as 'all' | 'plan' | 'build')
     : 'all';
   const slug = typeof body.slug === 'string' ? body.slug.trim().slice(0, 100) : '';
+  const editedPlan =
+    typeof body.editedPlan === 'string' ? body.editedPlan : '';
 
   if (phase !== 'build' && !premise) {
     return jsonResponse(400, { error: 'premise required' }, cors);
@@ -128,6 +131,7 @@ async function dispatch(
   if (genre) inputs.genre = genre;
   if (mechanics) inputs.mechanics = mechanics;
   if (slug) inputs.slug = slug;
+  if (editedPlan) inputs.edited_plan = editedPlan;
 
   const res = await fetch(
     `${GITHUB_API}/repos/${env.GITHUB_REPO}/actions/workflows/${env.GITHUB_WORKFLOW}/dispatches`,

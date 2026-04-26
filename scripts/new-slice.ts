@@ -48,6 +48,10 @@ function parseArgs(argv: string[]): {
       const next = args[++i];
       if (!next) throw new Error('--slug requires a value');
       slug = next;
+    } else if (a === '--edited-plan') {
+      const next = args[++i];
+      if (!next) throw new Error('--edited-plan requires JSON');
+      process.env.PLAYGEN_EDITED_PLAN = next;
     } else if (a === '--help' || a === '-h') {
       printUsageAndExit(0);
     } else {
