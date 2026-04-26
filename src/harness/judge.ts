@@ -6,6 +6,7 @@ export interface JudgeCriteria {
   requireReady?: boolean;
   requireProgress?: boolean;
   expectEvent?: PlayGenEventKind;
+  expectLoopSteps?: string[];
   minScore?: number;
   forbidErrors?: boolean;
 }
@@ -52,6 +53,25 @@ export async function judge(
       state,
       screenshotPath,
     );
+  }
+  if (criteria.expectLoopSteps && criteria.expectLoopSteps.length > 0) {
+    const firedSteps = new Set(
+      state.events
+        .filter((e) => e.kind === 'progress')
+        .map((e) => {
+          const p = e.payload as { step?: string } | undefined;
+          return p?.step;
+        })
+        .filter((s): s is string => Boolean(s)),
+    );
+    const missing = criteria.expectLoopSteps.filter((s) => !firedSteps.has(s));
+    if (missing.length > 0) {
+      return failure(
+        `loop steps not exercised: ${missing.join(', ')}`,
+        state,
+        screenshotPath,
+      );
+    }
   }
   if (criteria.minScore !== undefined && state.score < criteria.minScore) {
     return failure(

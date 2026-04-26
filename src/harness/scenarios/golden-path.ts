@@ -4,7 +4,7 @@ import {
   type HarnessSession,
 } from '../runner.js';
 import { judge, type JudgeResult } from '../judge.js';
-import type { ControlBinding } from '../../types/manifest.js';
+import type { ControlBinding, LoopStep } from '../../types/manifest.js';
 import * as kbd from '../inputs/keyboard.js';
 import * as touch from '../inputs/touch.js';
 import * as gpd from '../inputs/gamepad.js';
@@ -12,6 +12,7 @@ import { STANDARD_BUTTONS } from '../inputs/gamepad.js';
 
 export interface GoldenPathOptions {
   controls: ControlBinding[];
+  loopSteps?: LoopStep[];
   durationSec?: number;
   tickIntervalMs?: number;
 }
@@ -41,6 +42,7 @@ export async function runGoldenPath(
     requireReady: true,
     requireProgress: true,
     forbidErrors: true,
+    expectLoopSteps: opts.loopSteps?.map((s) => s.name),
   });
 }
 

@@ -41,12 +41,21 @@ export interface ConceptArtifact {
   variants?: string[];
 }
 
+export type Template = 'basic-platformer' | 'physics-vehicle';
+
+export interface LoopStep {
+  name: string;
+  control?: string;
+}
+
 export interface VerticalSlicePlan {
+  template: Template;
   title: string;
   oneLineHook: string;
   inputModes: InputMode[];
   controls: Partial<Record<InputMode, ControlBinding[]>>;
   levels: LevelSpec[];
+  loopSteps: LoopStep[];
   winCondition: string;
   loseCondition: string;
 }

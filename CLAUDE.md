@@ -57,6 +57,7 @@ games/                      generated slices land here at runtime
 - `src/harness/judge.ts` — `judge(session, label, criteria)` reads `window.__playgen`, captures a screenshot, returns `{verdict, reason, finalState, screenshotPath}`. Supports `requireReady`, `requireProgress`, `expectEvent`, `minScore`, `forbidErrors`.
 - `src/harness/scenarios/{boot,golden-path}.ts` — `runBoot(session)` waits for `__playgen.ready`; `runGoldenPath(session, {controls})` drives random inputs from the per-mode control bindings for ~15s and looks for win/lose events.
 - `scripts/playtest.ts` — `npm run playtest -- <slug>`. Iterates `manifest.plan.inputModes`, runs boot + golden-path per mode, appends PlaytestRuns to `manifest.playtests`, transitions status to `complete` or `fixing`. Exits 0/1 on overall verdict.
+- `templates/physics-vehicle/` — KSP-lite scaffold for vehicle/rocket sims. Ships a working launch loop with `emitStepOnce()` calls for `launch`, `throttle-up`, `pitch-maneuver`, `out-of-fuel`, `orbit-achieved`. Win = altitude + horizontal speed thresholds (orbital insertion); lose = crashed or fuel-out before orbit. Wired across keyboard / touch / gamepad. Planner picks this template when `designIntent.genre` matches sim/rocket/vehicle.
 - `templates/basic-platformer/` — first PlayCanvas project skeleton (Vite + `playcanvas` v2 engine). Ships:
   - top-down camera, ground, player cube, pickup sphere, goal pad
   - keyboard (WASD/arrows), gamepad (left stick + dpad, standard mapping), touch (drag-to-move) all wired to the same player entity

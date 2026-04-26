@@ -77,7 +77,8 @@ async function main(): Promise<void> {
 
       const goldenStart = Date.now();
       const controls = manifest.plan?.controls?.[mode] ?? [];
-      const golden = await runGoldenPath(session, { controls });
+      const loopSteps = manifest.plan?.loopSteps ?? [];
+      const golden = await runGoldenPath(session, { controls, loopSteps });
       runs.push(
         judgeToRun(
           'golden-path',
