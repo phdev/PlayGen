@@ -91,11 +91,13 @@ jobs:
       - name: Run orchestrator
         id: run
         run: |
-          if [ "${{ inputs.phase }}" = "build" ]; then
-            npm run new -- "${{ inputs.premise }}" --modes ${{ inputs.modes }} --phase build --slug "${{ inputs.slug }}"
-          else
-            npm run new -- "${{ inputs.premise }}" --modes ${{ inputs.modes }} --phase "${{ inputs.phase }}"
+          phase="${{ inputs.phase }}"
+          slug="${{ inputs.slug }}"
+          slug_arg=""
+          if [ -n "$slug" ]; then
+            slug_arg="--slug $slug"
           fi
+          npm run new -- "${{ inputs.premise }}" --modes ${{ inputs.modes }} --phase "${phase:-all}" $slug_arg
       - name: Publish artifacts
         run: |
           if [ "${{ inputs.phase }}" = "plan" ]; then
